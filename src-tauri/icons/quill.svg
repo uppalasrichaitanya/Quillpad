@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Quillpad — "The Floating Quill" monoline mark.
+       Single-stroke feather quill tilted at a writing angle, tip looping into a
+       stylized Q. Matches the sketchy ink-line style of the notebook's diagrams. -->
+  <defs>
+    <filter id="rough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="1" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/>
+    </filter>
+  </defs>
+  <!-- base underlay for stroke thickness, kept clean below -->
+  <g fill="none" stroke="#362B1E" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- shaft of the quill: one continuous stroke from nib to feather tip -->
+    <path filter="url(#rough)" d="M 406 96
+      C 406 96 352 152 306 226
+      C 274 276 258 330 252 392
+      C 251 403 249 416 252 424
+      C 254 430 259 434 265 433
+      C 272 432 278 426 280 419
+      C 282 412 281 404 278 398
+      C 275 392 269 387 262 387
+      C 256 387 251 390 247 395" />
+    <!-- barb hint on the lower edge of the feather -->
+    <path filter="url(#rough)" d="M 330 196 C 356 190 376 196 392 210" stroke-width="14" opacity="0.55"/>
+    <path filter="url(#rough)" d="M 348 230 C 372 226 388 232 400 244" stroke-width="12" opacity="0.45"/>
+  </g>
+</svg>

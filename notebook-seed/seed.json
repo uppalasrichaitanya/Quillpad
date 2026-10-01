@@ -1,0 +1,130 @@
+[
+  {
+    "meta": {
+      "subject": "Biology",
+      "num": "01",
+      "title": "Intro to Cell Biology",
+      "questions": [],
+      "created": "2026-08-31",
+      "pdf_path": null
+    },
+    "summary": "The cell is the basic <em>structural and functional</em> unit of all living organisms. This chapter sets up the vocabulary — prokaryote vs eukaryote, the cell theory, and why size matters — used for every chapter after it.",
+    "key_points": [
+      "<strong>Cell theory</strong> — all organisms are made of cells; the cell is the basic unit of life; cells arise only from pre-existing cells.",
+      "<strong>Prokaryotic</strong> cells (bacteria, archaea) have no nucleus — DNA sits free in the cytoplasm.",
+      "<strong>Eukaryotic</strong> cells (plants, animals, fungi) have a true nucleus and membrane-bound organelles.",
+      "Surface-area-to-volume ratio limits how large a single cell can grow before diffusion becomes too slow."
+    ],
+    "diagrams": [],
+    "qa": [],
+    "recap": "Two cell types, one theory, one size limit — everything else in this unit builds on this page."
+  },
+  {
+    "meta": {
+      "subject": "Biology",
+      "num": "04",
+      "title": "Cell Structure & Function",
+      "questions": [],
+      "created": "2026-08-31",
+      "pdf_path": null
+    },
+    "summary": "Every organelle in the cell has one job and does it well. Think of the cell as a <em>tiny factory</em> — the nucleus is the office, mitochondria the power plant, ribosomes the assembly line.",
+    "key_points": [
+      "<strong>Nucleus</strong> — houses DNA, controls gene expression, wrapped in a double membrane (nuclear envelope).",
+      "<strong>Mitochondria</strong> — site of aerobic respiration, produces ATP; has its own DNA (endosymbiotic origin).",
+      "<strong>Ribosomes</strong> — build proteins from mRNA; free-floating or attached to rough ER.",
+      "<strong>Golgi apparatus</strong> — modifies, sorts and packages proteins for secretion.",
+      "<strong>Cell membrane</strong> — phospholipid bilayer, selectively permeable, controls what enters/exits."
+    ],
+    "diagrams": [
+      {
+        "type": "labelled-blob",
+        "data": {
+          "caption": "fig. 4.1 — generalised animal cell, organelles labelled",
+          "outline": "generalised animal cell",
+          "parts": [
+            { "label": "nucleus", "kind": "oval", "accent": true, "size": "large" },
+            { "label": "mitochondria", "kind": "oval", "size": "small" },
+            { "label": "ribosomes", "kind": "dot", "count": 3 },
+            { "label": "rough ER", "kind": "squiggle" },
+            { "label": "membrane", "kind": "edge" }
+          ]
+        }
+      }
+    ],
+    "qa": [],
+    "recap": "Nucleus = control, mitochondria = power, ribosomes = build, Golgi = ship, membrane = gatekeeper."
+  },
+  {
+    "meta": {
+      "subject": "Biology",
+      "num": "07",
+      "title": "Genetics Basics",
+      "questions": [],
+      "created": "2026-08-31",
+      "pdf_path": null
+    },
+    "summary": "Genetics explains how traits pass from parent to offspring. Mendel's pea plants gave us the first rules — dominant and recessive alleles — long before anyone had seen a chromosome.",
+    "key_points": [
+      "<strong>Allele</strong> — a version of a gene; organisms carry two per gene (one from each parent).",
+      "<strong>Dominant vs recessive</strong> — a dominant allele masks a recessive one in a heterozygote.",
+      "<strong>Genotype</strong> is the allele pairing (e.g. Aa); <strong>phenotype</strong> is the observable trait.",
+      "<strong>Punnett squares</strong> predict offspring ratios from a cross of two known genotypes."
+    ],
+    "diagrams": [],
+    "qa": [],
+    "recap": "Genotype is the code, phenotype is what you see — Punnett squares just do the arithmetic between them."
+  },
+  {
+    "meta": {
+      "subject": "Chemistry",
+      "num": "02",
+      "title": "Periodic Trends",
+      "questions": [],
+      "created": "2026-08-31",
+      "pdf_path": null
+    },
+    "summary": "Move across or down the periodic table and properties shift in <em>predictable directions</em> — because you're really just changing how tightly the nucleus holds its electrons.",
+    "key_points": [
+      "<strong>Atomic radius</strong> — decreases across a period (more nuclear pull), increases down a group (new shells).",
+      "<strong>Ionisation energy</strong> — increases across a period, decreases down a group.",
+      "<strong>Electronegativity</strong> — highest top-right of the table (excluding noble gases), lowest bottom-left.",
+      "<strong>Metallic character</strong> — increases down and to the left; nonmetals cluster top-right."
+    ],
+    "diagrams": [
+      {
+        "type": "trend-grid",
+        "data": {
+          "caption": "fig. 2.1 — direction of increasing electronegativity & ionisation energy",
+          "rows": 6,
+          "cols": 8,
+          "trends": [
+            { "direction": "right", "label": "electronegativity increases" },
+            { "direction": "up", "label": "metallic character increases" }
+          ]
+        }
+      }
+    ],
+    "qa": [],
+    "recap": "Across a period: smaller, harder to ionise, more electronegative. Down a group: the opposite."
+  },
+  {
+    "meta": {
+      "subject": "Physics",
+      "num": "03",
+      "title": "Newton's Laws",
+      "questions": [],
+      "created": "2026-08-31",
+      "pdf_path": null
+    },
+    "summary": "Three short statements that describe almost every everyday motion you'll ever see — from a dropped pencil to a rocket launch.",
+    "key_points": [
+      "<strong>1st law (inertia)</strong> — an object at rest stays at rest, in motion stays in motion, unless acted on by a net force.",
+      "<strong>2nd law</strong> — F = ma. Acceleration is directly proportional to net force, inversely proportional to mass.",
+      "<strong>3rd law</strong> — for every action there is an equal and opposite reaction."
+    ],
+    "diagrams": [],
+    "qa": [],
+    "recap": "No force, no change (1st). Force causes acceleration (2nd). Forces come in pairs (3rd)."
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Quillpad main window capabilities",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:default"]
+}

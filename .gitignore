@@ -1,0 +1,62 @@
+# --- dependencies / build output (never commit) ---
+node_modules/
+dist/
+dist-artifact/
+src-tauri/target/
+src-tauri/gen/
+web/dist/
+web/dist-artifact/
+web/node_modules/
+
+# --- secrets (never commit) ---
+.env
+*_body.json
+New Text Document.txt
+
+# --- release binaries live on GitHub Releases, not in git ---
+*.exe
+*.msi
+*.nsis
+public/download/
+
+# --- personal study material (local only, large PDFs) ---
+material/
+
+# --- one-off dev/probe scripts (local only; only make_icon.py ships) ---
+scripts/cache/
+scripts/__pycache__/
+scripts/_*.json
+scripts/*.pyc
+scripts/probe_*.py
+scripts/gen_*.py
+scripts/ocr_*.py
+scripts/verify_*.py
+scripts/generate_*.py
+scripts/distill_*.py
+scripts/fix_*.py
+scripts/count_*.py
+scripts/test_*.mjs
+scripts/test_*.py
+
+# --- prototypes & internal planning (local only) ---
+notebook.html
+PLAN.md
+
+# --- agent tooling scratch (local only) ---
+.agents/
+.claude/
+.opencode/
+.qwen/
+
+# --- separate landing-page app (not part of the desktop build) ---
+web/
+
+# --- web-only stray (landing-page download metadata, not the desktop app) ---
+src/download-info.ts
+
+# --- stray junk ---
+'
+*.log
+
+# dead module (superseded; kept locally only)
+src-tauri/src/exports.rs
