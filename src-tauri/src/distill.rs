@@ -857,7 +857,8 @@ async fn call_anthropic_blocks(
     blocks: serde_json::Value,
 ) -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(290))
+        // long chapters at 16k output tokens can take minutes; the SDKs' 10 min
+        .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -918,7 +919,11 @@ async fn call_anthropic_blocks(
         {
             Ok(r) => r,
             Err(e) => {
-                last_err = format!("{}: request failed: {e}", ep.name);
+                let f = send_failure(e.is_connect(), e.is_timeout(), &e.to_string());
+                last_err = f.message;
+                if attempt >= f.attempts {
+                    return Err(last_err);
+                }
                 sleep_backoff(attempt).await;
                 continue;
             }
@@ -957,6 +962,35 @@ async fn call_anthropic_blocks(
         return Ok(pieces.join("\n"));
     }
     Err(last_err)
+}
+
+/// What to do when a request never got an HTTP response.
+struct SendFailure {
+    message: String,
+    /// Total attempts allowed for this kind of failure.
+    attempts: u32,
+}
+
+/// A timeout is never retried: the server may still be generating — and
+/// billing — the first reply. A refused connection never reached it, so one
+/// retry is free.
+fn send_failure(is_connect: bool, is_timeout: bool, detail: &str) -> SendFailure {
+    if is_timeout {
+        SendFailure {
+            message: "the AI took too long to answer — try a shorter file, or try again later".into(),
+            attempts: 1,
+        }
+    } else if is_connect {
+        SendFailure {
+            message: "couldn't reach the AI service — check your internet connection".into(),
+            attempts: 2,
+        }
+    } else {
+        SendFailure {
+            message: format!("the request couldn't be sent: {detail}"),
+            attempts: 1,
+        }
+    }
 }
 
 async fn sleep_backoff(attempt: u32) {
@@ -1182,6 +1216,28 @@ mod tests {
         let env = env_of(&[("QUILLPAD_SEEKAI_KEY", "a")]);
         let eps = endpoints_from(&custom_settings("", "", "sk-ant-user"), &env);
         assert_eq!(eps[0].name, "custom");
+    }
+
+    #[test]
+    fn timeouts_are_never_retried() {
+        // the server may still be generating (and billing) the first request
+        let f = send_failure(false, true, "operation timed out");
+        assert_eq!(f.attempts, 1);
+        assert!(f.message.contains("took too long"), "{}", f.message);
+    }
+
+    #[test]
+    fn connection_failures_retry_once_with_a_plain_message() {
+        let f = send_failure(true, false, "dns error");
+        assert_eq!(f.attempts, 2);
+        assert!(f.message.contains("couldn't reach"), "{}", f.message);
+    }
+
+    #[test]
+    fn other_send_errors_fail_fast() {
+        let f = send_failure(false, false, "builder error");
+        assert_eq!(f.attempts, 1);
+        assert!(f.message.contains("builder error"));
     }
 
     #[test]
