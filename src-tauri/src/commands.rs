@@ -65,8 +65,11 @@ pub struct AiStatus {
 
 #[tauri::command]
 pub fn get_settings(app: AppHandle) -> Result<Settings, String> {
-    // llm_api_key is skip_serializing: the key never crosses into the webview
-    Settings::load(&app_data(&app))
+    // the key never crosses into the webview (an un-migrated 0.1 key may
+    // still be on disk; the UI only needs ai_status.key_set)
+    let mut settings = Settings::load(&app_data(&app))?;
+    settings.llm_api_key.clear();
+    Ok(settings)
 }
 
 #[tauri::command]

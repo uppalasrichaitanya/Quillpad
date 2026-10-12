@@ -19,10 +19,12 @@ pub struct Settings {
     pub llm_base_url: String,
     #[serde(default = "default_model")]
     pub llm_model: String,
-    /// Runtime only: filled from the OS credential store. Read from disk solely
-    /// to migrate keys saved by 0.1 (which stored them in plain text); never
-    /// written back.
-    #[serde(default, skip_serializing)]
+    /// Runtime only: filled from the OS credential store. On disk it exists
+    /// only as a 0.1-era plaintext key awaiting migration: migration empties
+    /// it, and it is written back only while non-empty — so a key whose move
+    /// to the credential store failed survives later saves instead of being
+    /// silently dropped. Never save a Settings filled by settings_with_key.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub llm_api_key: String,
     /// "midnight" for the dark theme; absent = default cream paper.
     #[serde(default)]
@@ -236,6 +238,20 @@ mod tests {
         assert!(r.is_err());
         let on_disk = fs::read_to_string(d.join("settings.json")).unwrap();
         assert!(on_disk.contains("sk-ant-2"), "key must not be lost: {on_disk}");
+    }
+
+    #[test]
+    fn unmigrated_key_survives_a_later_unrelated_save() {
+        // credential store down at startup → key stays on disk; then the user
+        // changes theme (load → save). The key must still be there.
+        let d = temp_dir("resave");
+        fs::write(d.join("settings.json"), r#"{"llm_api_key":"sk-ant-3"}"#).unwrap();
+        assert!(Settings::load_migrated(&d, |_| Err("no store".into())).is_err());
+        let mut s = Settings::load(&d).unwrap();
+        s.theme = Some("midnight".into());
+        s.save(&d).unwrap();
+        let on_disk = fs::read_to_string(d.join("settings.json")).unwrap();
+        assert!(on_disk.contains("sk-ant-3"), "key lost on re-save: {on_disk}");
     }
 
     #[test]
