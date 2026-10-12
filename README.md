@@ -1,10 +1,195 @@
 # Quillpad
 
-A local-first notebook app that turns your chapter PDFs into brief, clear,
-subject-organized study notes — with hand-drawn-style diagrams.
+**Turn any chapter into notes worth keeping, then actually remember them.**
 
-Built with **Tauri 2** (Rust backend + web UI). No database: notes are plain
-`.md` files on disk, organized by subject and chapter, mirroring the sidebar:
+Quillpad is a free Windows app for students. Drop in a chapter (PDF, Word or
+PowerPoint, scanned or not) and it writes a short, clear note: a summary, the
+key points, answers to the questions you care about, and the chapter's
+diagrams redrawn as hand-drawn-style line art. Then it helps you study from
+that note with flashcards, quizzes, practice writing and timed mock exams.
+
+![Quillpad turning a biology chapter into a note](web/public/og.png)
+
+**[Download for Windows](https://github.com/uppalasrichaitanya/Quillpad/releases)**
+· no account, no install, no cloud
+
+[What it does](#what-it-does) ·
+[Getting started](#getting-started) ·
+[Getting your AI key](#getting-your-ai-key-2-minutes) ·
+[Cost](#what-it-costs) ·
+[Privacy](#privacy) ·
+[FAQ](#faq) ·
+[For developers](#for-developers)
+
+## What it does
+
+### Notes you can keep
+
+Drag a chapter file onto the window (or use **+ import chapter file**). The
+import wizard fills in the subject, chapter number and title from the file
+name; you can add the important questions you want answered. Shortly
+after, you have a note with:
+
+- a short summary and the key points
+- answers to the questions you supplied
+- the chapter's diagrams, redrawn as clean line art you can read at a glance
+
+Scanned PDFs work too: Quillpad detects them and reads the pages itself.
+
+![A finished chapter note](docs/images/chapter.png)
+
+Notes are plain Markdown files in a folder on your disk, one folder per
+subject. You can edit them, back them up, or open them in anything else.
+
+### Study from them
+
+- **Flashcards** built from each chapter's key points. Cards you miss come
+  back; the ones you know get out of the way.
+- **Quizzes** and **practice writing**, graded against your note.
+- **Timed mock exams**, with a history of how you did.
+- **A "today" dashboard** that tells you what to study next ("Start with 20
+  new cards, about 10 min"), shows mastery by subject, and lists the weak
+  topics to revise first.
+
+![The today dashboard](docs/images/today.png)
+
+![A flashcard](docs/images/flashcard.png)
+
+### Ask your notes
+
+Type a question and Quillpad points you to the chapter and line that answers
+it. That works offline. With an API key it can also write a full answer from
+your notes.
+
+### Take it with you
+
+Export a chapter as Markdown, as styled HTML or as a PDF, or make a one-page
+cheat sheet for a whole subject. There is also a Midnight Ink dark theme for
+late-night revision.
+
+## Getting started
+
+1. Go to [**Releases**](https://github.com/uppalasrichaitanya/Quillpad/releases)
+   and download `Quillpad.exe` from the latest release (about 14 MB,
+   portable, no installer).
+2. Double-click it. If Windows SmartScreen says *"Windows protected your PC"*
+   (the app is unsigned), choose **More info, then Run anyway**.
+3. On first launch a short welcome asks where to keep your notes. Five
+   sample chapters (Biology, Chemistry and Physics) are already there so you
+   can look around.
+4. Optional: paste an AI key and press **test**, or choose **skip, use
+   offline**. You can add a key later in settings.
+
+![First-launch welcome](docs/images/welcome.png)
+
+Quillpad needs **WebView2**, which is preinstalled on Windows 10 and 11. If
+the window opens blank, install it from
+[Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
+
+To check your download, the SHA-256 of `Quillpad.exe` is listed on the
+release page.
+
+### What works without a key
+
+Everything except three things: turning chapters into notes, AI-written
+answers to your questions, and generating quizzes. Reading, searching, offline
+ask, flashcards, practice, mock exams and exports all work with no key and no
+internet connection.
+
+## Getting your AI key (2 minutes)
+
+Chapter-to-note conversion, online answers and quiz generation use Claude
+through **your own** Anthropic API key. You pay Anthropic directly for what
+you use, and nothing goes through anyone else's server.
+
+1. Go to [console.anthropic.com](https://console.anthropic.com), sign up, and
+   add a little credit under **Billing**.
+2. Open **API keys, then Create key**, and copy it.
+3. In Quillpad: **settings, then AI key**. Paste it, press **test**, then
+   **save**.
+
+The key is stored in Windows Credential Manager, not in a file. The default
+model is `claude-opus-5-5`. For cheaper notes, set **advanced, then model** to
+`claude-sonnet-5-5`. Any Anthropic Messages-compatible endpoint can be set
+under **advanced, then API base URL**.
+
+## What it costs
+
+Quillpad is free. The only cost is what Anthropic charges your account for the
+AI features. A typical chapter costs a few cents to a few tens of cents,
+depending on its length and the model you pick. You can set a monthly
+spending limit in the Anthropic console, so there are no surprises.
+
+## Privacy
+
+- No account, no sign-up, no cloud.
+- Your notes are ordinary files in a folder you chose.
+- Your API key lives in Windows Credential Manager, never in a file.
+- When you use an AI feature, the request goes straight from the app to
+  Anthropic. Everything else stays on your computer.
+
+## FAQ
+
+**Is it really free?**
+Yes. You only pay Anthropic for the AI calls you make, if you choose to add a
+key. See [What it costs](#what-it-costs).
+
+**Does it work offline?**
+Yes, apart from converting chapters, AI-written answers and quiz generation.
+See [What works without a key](#what-works-without-a-key).
+
+**Is there a Mac or Linux version?**
+Not yet. Quillpad is Windows-only for now.
+
+**Where are my notes stored?**
+In the folder you picked on first launch,
+as `.md` files grouped by subject. The path is shown at the top of the
+sidebar.
+
+**Can I import PowerPoint or Word files?**
+Yes: PDF, Word and PowerPoint, including scanned PDFs.
+
+**Why does Windows warn me when I open it?**
+The app is not code-signed, so SmartScreen shows a warning. Choose **More
+info, then Run anyway**.
+
+---
+
+## For developers
+
+Quillpad is built with **Tauri 2**: a Rust backend and a vanilla JavaScript
+frontend, no framework and no database.
+
+### Run from source
+
+```bash
+npm install
+npm run tauri dev
+```
+
+Requires Node 22+, Rust (MSVC toolchain) and WebView2.
+
+### Build
+
+```bash
+npm run tauri build -- --no-bundle
+# -> src-tauri/target/release/quillpad.exe
+```
+
+### Tests
+
+```bash
+npm test                       # frontend logic tests
+(cd src-tauri && cargo test)   # backend tests
+```
+
+The release QA log, including the fresh-user first-run checks, is in
+[`docs/superpowers/qa/2026-10-12-qa.md`](docs/superpowers/qa/2026-10-12-qa.md).
+
+### Notes format
+
+Notes are Markdown with YAML front-matter (subject, num, title, questions,
+created, pdf_path) and `##` sections, organized by subject and chapter:
 
 ```
 Quillpad/
@@ -15,100 +200,17 @@ Quillpad/
     02-periodic-trends.md
 ```
 
-## Download (Windows)
+Diagrams live in fenced ` ```quill-diagram ` JSON blocks inside the note, so
+prose stays prose and diagrams stay structured. They are typed specs
+(labelled-blob, trend-grid, process-flow, distribution-curve) that the
+frontend renders as hand-drawn-style SVG. The slug drops punctuation rather
+than expanding it, so `Cell Structure & Function` becomes
+`04-cell-structure-function.md`.
 
-1. Go to [**Releases**](https://github.com/uppalasrichaitanya/Quillpad/releases)
-   and download `Quillpad.exe` from the latest release (~14 MB, portable —
-   no install needed).
-2. Double-click `Quillpad.exe` to run it.
-3. If Windows SmartScreen says *"Windows protected your PC"* (the app is
-   unsigned), click **More info → Run anyway**.
-4. Requires **WebView2** — preinstalled on Windows 10/11. If the window is
-   blank, install it from
-   [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
+Study progress is saved in `study-state.json` and mock exam results in exam
+history; both autosave per action and are written atomically.
 
-On first launch Quillpad asks where to keep your notes (sample chapters are
-already there to explore) and, optionally, for an AI key. Reading, searching,
-flashcards and exams work fully offline; turning chapters into notes needs a
-key — see [Getting your AI key](#getting-your-ai-key-2-minutes).
-
-> Verify your download (optional): the SHA-256 of `Quillpad.exe` is listed
-> on the release page.
-
-## Run it from source (dev)
-
-```bash
-npm install
-npm run tauri dev
-```
-
-Requires Node 22+, Rust (MSVC toolchain), and WebView2 (preinstalled on
-Windows 10/11).
-
-To build the exe yourself:
-
-```bash
-npm run tauri build -- --no-bundle
-# → src-tauri/target/release/quillpad.exe
-
-npm test                       # frontend logic tests
-(cd src-tauri && cargo test)   # backend tests
-```
-
-## Features
-
-- **Import chapters** — `+ import chapter file` in the sidebar. Pick a
-  chapter PDF, Word document, or PowerPoint file, then its subject/number/
-  title and optionally the chapter's important questions. Re-importing a
-  name that already exists asks before replacing the note on disk.
-- **Read** — text-based PDFs are extracted directly (`pdf-extract` crate).
-  **Scanned PDFs** are detected automatically: pages render via pdf.js in
-  the app and are transcribed by a vision model.
-- **Distill** — the chapter text goes to Claude (or any Anthropic
-  Messages-compatible endpoint you configure), which returns a strict-JSON note draft: summary, key points,
-  question answers, and **diagrams as typed specs** (labelled-blob /
-  trend-grid / process-flow / distribution-curve).
-- **Render** — the frontend renders those specs as hand-drawn-style SVGs
-  (turbulence filter, dashed leader lines, Caveat labels, rust accents),
-  with a Midnight Ink dark mode.
-- **Ask your notes** — `ask` in the sidebar works offline (scored matcher
-  points at the chapter that answers, no network call) or online (excerpts
-  sent to the configured endpoint, labelled when it goes beyond your notes).
-- **Study & exam** — flashcards, quizzes, and practice writing grade into
-  one state file (`study-state.json`); timed mock exams grade into exam
-  history. Both autosave per action and are written atomically.
-- **Export** — `export chapter` at the bottom of any note: Markdown
-  (round-trips back into the app) or self-contained themed HTML.
-
-## Getting your AI key (2 minutes)
-
-Reading, searching, flashcards and exams work offline with no key. Turning
-chapters into notes, online answers and quiz generation use Claude through
-**your own** Anthropic API key — you pay Anthropic directly for what you use,
-and nothing goes through anyone else's server.
-
-1. Go to [console.anthropic.com](https://console.anthropic.com), sign up, and
-   add a little credit under **Billing**.
-2. Open **API keys → Create key** and copy it.
-3. In Quillpad: **settings → AI key**, paste, press **test**, then **save**.
-
-The key is stored in Windows Credential Manager, not in a file. The default
-model is `claude-opus-5-5`; for cheaper notes set **advanced → model** to
-`claude-sonnet-5-5`. Any Anthropic Messages-compatible endpoint can be set
-under **advanced → API base URL**.
-
-*Developers:* a `.env` next to the exe or in the project root
-(`QUILLPAD_SEEKAI_KEY`, …) is still honoured as a fallback — see `.env.example`.
-
-## Notes format
-
-Markdown with YAML front-matter (subject, num, title, questions, created,
-pdf_path) and `##` sections. Diagrams live in fenced ` ```quill-diagram `
-JSON blocks inside the note, so prose stays prose and diagrams stay
-structured. The slug drops punctuation rather than expanding it, so
-`Cell Structure & Function` becomes `04-cell-structure-function.md`.
-
-## Project layout
+### Project layout
 
 ```
 src/            frontend (vanilla JS, no framework)
@@ -119,7 +221,7 @@ src/            frontend (vanilla JS, no framework)
   readiness.js    mastery, weak pile, due deck
   exam.js         exam paper construction and scoring
   pdfr.js         PDF probe + page rendering for scanned chapters
-  diagrams.js     typed diagram specs → hand-drawn SVG
+  diagrams.js     typed diagram specs -> hand-drawn SVG
   quill.js        the Floating Quill brand mark
   styles.css      the field-notebook theme
 src-tauri/      Rust backend
@@ -132,5 +234,17 @@ src-tauri/      Rust backend
   seed.rs         first-run seed chapters
 notebook-seed/  first-run example chapters as real notes
 tests/          frontend logic tests (npm test)
+web/            the download website (see web/README.md)
 scripts/make_icon.py   generates the app icon (Pillow)
 ```
+
+### Website
+
+The download page lives in [`web/`](web/README.md). Its demos use the real
+sample chapters from `notebook-seed/seed.json`.
+
+### Developer `.env` fallback
+
+Normal users set their key in the app. For development, a `.env` next to the
+exe or in a parent folder is still honoured as a fallback, using only
+`QUILLPAD_*` variable names. See [`.env.example`](.env.example).
