@@ -4,3 +4,4 @@ public/download
 .shots
 
 dist-artifact
+dist-ssr

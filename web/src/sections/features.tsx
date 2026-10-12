@@ -97,7 +97,7 @@ function MiniFlashcard() {
             flip();
           }
         }}
-        aria-label={flipped ? "Flashcard answer — press to show the question" : "Flashcard question — press to reveal the answer"}
+        aria-pressed={flipped}
         data-testid="flashcard"
         data-flipped={flipped}
         className="group block w-full rotate-[1.2deg] [perspective:1200px]"

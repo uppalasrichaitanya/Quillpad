@@ -4,8 +4,8 @@ export const RELEASE = {
   "fileName": "Quillpad.exe",
   "url": "https://github.com/uppalasrichaitanya/Quillpad/releases/download/v0.1.0/Quillpad.exe",
   "releasesUrl": "https://github.com/uppalasrichaitanya/Quillpad/releases",
-  "sizeBytes": 20386304,
-  "sha256": "d9011146887b8455969efba36539c2599941c4311081ef99b048dd117384946f"
+  "sizeBytes": 20559872,
+  "sha256": "16529185bb5948c5b27c773634e88d4755dbadf3cce4b16960fa981a381fb0ef"
 } as const;
 
 export const RELEASE_MB = (RELEASE.sizeBytes / (1024 * 1024)).toFixed(0);

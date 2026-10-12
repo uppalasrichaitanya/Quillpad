@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "node scripts/release-info.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/release-info.mjs && tsc --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "verify": "node scripts/verify-page.mjs",
     "shoot": "node scripts/shoot.mjs"

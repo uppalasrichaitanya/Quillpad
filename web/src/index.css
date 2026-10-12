@@ -42,6 +42,7 @@
 
 @layer base {
   html {
+    overflow-x: clip;
     background: var(--color-desk);
     color-scheme: dark;
     scroll-behavior: smooth;
@@ -89,7 +90,7 @@
 /* Film grain over everything — the desk has texture, not a flat fill. */
 .desk-grain {
   position: fixed;
-  inset: -50%;
+  inset: 0;
   pointer-events: none;
   z-index: 60;
   opacity: 0.055;

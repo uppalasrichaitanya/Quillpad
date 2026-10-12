@@ -7,38 +7,47 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 
 /**
  * The generalised animal cell, drawn the way Quillpad redraws a figure: wobbly
- * ink line art, dashed leader lines, handwritten labels. With `draw`, strokes
- * ink themselves in; otherwise the finished figure renders statically.
+ * ink line art, dashed leader lines, handwritten labels.
+ *  - "static": the finished figure, no motion
+ *  - "hidden": blank, waiting to be drawn
+ *  - "draw":   strokes ink themselves in (from "hidden")
+ *  - "instant": finished figure, reached without animating (reduced motion)
  */
+export type DrawMode = "static" | "hidden" | "draw" | "instant";
+
 export function CellDiagram({
-  draw = false,
+  mode = "static",
   delay = 0,
   className = "",
 }: {
-  draw?: boolean;
+  mode?: DrawMode;
   delay?: number;
   className?: string;
 }) {
   const id = useId().replace(/:/g, "");
+  const shown = mode === "draw" || mode === "instant";
   const stroke = (d: number) =>
-    draw
-      ? {
+    mode === "static"
+      ? {}
+      : {
           initial: { pathLength: 0, opacity: 0 },
-          animate: { pathLength: 1, opacity: 1 },
-          transition: {
-            pathLength: { delay: delay + d, duration: 0.9, ease: EASE },
-            opacity: { delay: delay + d, duration: 0.15 },
-          },
-        }
-      : {};
+          animate: shown ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 },
+          transition:
+            mode === "draw"
+              ? {
+                  pathLength: { delay: delay + d, duration: 0.9, ease: EASE },
+                  opacity: { delay: delay + d, duration: 0.15 },
+                }
+              : { duration: 0 },
+        };
   const fade = (d: number) =>
-    draw
-      ? {
+    mode === "static"
+      ? {}
+      : {
           initial: { opacity: 0 },
-          animate: { opacity: 1 },
-          transition: { delay: delay + d, duration: 0.4 },
-        }
-      : {};
+          animate: { opacity: shown ? 1 : 0 },
+          transition: mode === "draw" ? { delay: delay + d, duration: 0.4 } : { duration: 0 },
+        };
 
   const labels: [number, number, number, number, number, number, string][] = [
     // x1,y1 (part)  x2,y2 (label end)  tx,ty  text
