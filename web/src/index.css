@@ -1,0 +1,220 @@
+/* Quillpad landing — "The Field Notebook"
+   The app's own skin, at landing-page scale: cream paper, brown ink, rust
+   emphasis, dashed rules, a margin line with handwritten notes hanging off it. */
+
+@import "tailwindcss";
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/600-italic.css";
+@import "@fontsource/caveat/500.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+@theme {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Fraunces", Georgia, serif;
+  --font-hand: "Caveat", cursive;
+  --font-meta: "IBM Plex Mono", monospace;
+
+  /* cream paper */
+  --color-paper: #f3eada;
+  --color-shell: #eee4d0;
+  --color-card: #f7f0e4;
+  --color-card-deep: #e8d8bb;
+  --color-line: #e2d5be;
+  --color-line-strong: #cfc0a4;
+
+  /* brown ink */
+  --color-ink: #362b1e;
+  --color-ink-soft: #5c513e;
+  --color-ink-faint: #6c5d49;
+
+  /* rust accent: #b1512c carries white button text at 5.1:1; rust-deep for
+     small text; rust-soft for graphics only */
+  --color-rust: #b1512c;
+  --color-rust-deep: #96421f;
+  --color-rust-soft: #e0a579;
+  --color-rust-tint: #f2e3d2;
+
+  /* midnight band: the app's dark mode as a section skin */
+  --color-night: #241b12;
+  --color-night-deep: #1c160f;
+  --color-night-ink: #e9dcc4;
+  --color-night-soft: #b3a184;
+  --color-night-line: #4a3b28;
+  --color-night-rust: #d0744a;
+
+
+  --text-hero: clamp(2.9rem, 6.6vw, 6rem);
+  --text-mega: clamp(2.9rem, 5.4vw, 5.2rem);
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  background: var(--color-paper);
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(188, 90, 50, 0.05), transparent 45%),
+    radial-gradient(ellipse at 85% 90%, rgba(108, 93, 73, 0.06), transparent 50%);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-rust-tint);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px dashed var(--color-rust-deep);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* meta voice: IBM Plex Mono, spaced caps, dark enough to read on paper */
+.kicker {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-rust-deep);
+}
+
+.hand {
+  font-family: "Caveat", cursive;
+  font-weight: 500;
+  color: var(--color-ink-faint);
+}
+
+/* the notebook margin rule + binder holes, pinned to the viewport */
+.margin-rail {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 3.5rem;
+  border-left: 1px dashed color-mix(in srgb, var(--color-rust) 55%, transparent);
+  pointer-events: none;
+}
+.margin-rail::before,
+.margin-rail::after,
+.margin-rail > i {
+  content: "";
+  position: absolute;
+  left: -9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--color-rust) 45%, transparent);
+  box-shadow: inset 0 1px 3px rgba(54, 43, 30, 0.18);
+}
+.margin-rail::before {
+  top: 18vh;
+}
+.margin-rail::after {
+  top: 52vh;
+}
+.margin-rail > i {
+  top: 86vh;
+}
+
+/* paper sheet: sharp-ish corners, layered ink shadow */
+.sheet {
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  box-shadow:
+    0 1px 0 rgba(54, 43, 30, 0.08),
+    0 14px 34px -12px rgba(54, 43, 30, 0.28);
+}
+.sheet-deep {
+  background: var(--color-card-deep);
+}
+
+/* masking tape corner */
+.tape {
+  position: absolute;
+  width: 76px;
+  height: 24px;
+  background: color-mix(in srgb, var(--color-card-deep) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-line-strong) 80%, transparent);
+  box-shadow: 0 1px 2px rgba(54, 43, 30, 0.12);
+}
+
+/* index tab rail (right edge notebook dividers) */
+.tab-rail {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tab {
+  writing-mode: vertical-rl;
+  padding: 14px 7px;
+  border-radius: 8px 0 0 8px;
+  border: 1px solid var(--color-line);
+  border-right: none;
+  background: var(--color-card);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  box-shadow: -8px 2px 12px -8px rgba(54, 43, 30, 0.25);
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+.tab:hover {
+  transform: translateX(-6px);
+}
+.tab.active {
+  background: var(--color-rust);
+  color: #fff;
+  border-color: var(--color-rust);
+  transform: translateX(-10px);
+}
+
+/* index tab rail visibility: desktop only */
+@media (max-width: 1279px) {
+  .tab-rail {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab:hover,
+  .tab.active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes floaty {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-6px) rotate(0.3deg);
+    }
+  }
+  .floaty {
+    animation: floaty 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

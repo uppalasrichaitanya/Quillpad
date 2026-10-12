@@ -35,7 +35,6 @@ scripts/generate_*.py
 scripts/distill_*.py
 scripts/fix_*.py
 scripts/count_*.py
-scripts/test_*.mjs
 scripts/test_*.py
 
 # --- prototypes & internal planning (local only) ---
@@ -49,8 +48,11 @@ PLAN.md
 .qwen/
 .superpowers/
 
-# --- separate landing-page app (not part of the desktop build) ---
-web/
+# --- landing page (web/): deps, build output, screenshots ---
+web/node_modules/
+web/dist/
+web/dist-artifact/
+web/.shots/
 
 # --- web-only stray (landing-page download metadata, not the desktop app) ---
 src/download-info.ts
@@ -58,6 +60,7 @@ src/download-info.ts
 # --- stray junk ---
 '
 *.log
+
 
 # dead module (superseded; kept locally only)
 src-tauri/src/exports.rs
