@@ -47,6 +47,7 @@ PLAN.md
 .claude/
 .opencode/
 .qwen/
+.superpowers/
 
 # --- separate landing-page app (not part of the desktop build) ---
 web/
