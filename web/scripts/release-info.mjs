@@ -5,13 +5,20 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 
 const root = new URL('../../', import.meta.url);
-const exe = new URL('src-tauri/target/release/quillpad.exe', root);
+const exe = process.env.RELEASE_EXE || new URL('src-tauri/target/release/quillpad.exe', root);
 const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
 const out = new URL('../src/release.ts', import.meta.url);
 
 if (!existsSync(exe)) {
   if (existsSync(out)) {
-    console.log('release-info: no local exe, keeping existing release.ts');
+    // keep the committed facts only if they describe this version — otherwise
+    // the page would publish a download link and checksum for another release
+    const stamped = readFileSync(out, 'utf8').match(/"version": "([^"]+)"/)?.[1];
+    if (stamped !== pkg.version) {
+      console.error(`release-info: release.ts is for v${stamped} but the app is v${pkg.version} — build the app and re-run`);
+      process.exit(1);
+    }
+    console.log(`release-info: no local exe, keeping release.ts for v${stamped}`);
     process.exit(0);
   }
   console.error('release-info: build the app first (npm run tauri build -- --no-bundle)');
