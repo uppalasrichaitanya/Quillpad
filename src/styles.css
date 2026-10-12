@@ -1615,3 +1615,21 @@ body.midnight .dash-btn.primary:hover { background: #e08a60; border-color: #e08a
   color: var(--ink-soft);
   margin: 6px 0 18px;
 }
+
+/* ---------- drop a chapter file anywhere to import ---------- */
+body.drop-ready::after {
+  content: 'Drop to import this chapter';
+  position: fixed;
+  inset: 16px;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--rust);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--rust);
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 28px;
+  pointer-events: none;
+}
