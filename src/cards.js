@@ -25,6 +25,22 @@ export function trapOf(topic) {
   return '';
 }
 
+// Turn a key point into a prompt about its term. Points read
+// "<strong>Term</strong> — explanation" (or "Term: explanation"); those
+// without a bold term become a finish-the-thought prompt on their opening.
+export function keyPointPrompt(kp) {
+  const text = String(kp);
+  const bold = text.match(/^\s*<strong>(.+?)<\/strong>\s*(?:[—–:-]\s*)?/);
+  if (bold) {
+    const term = bold[1].replace(/<[^>]*>/g, '').trim();
+    return { label: term, front: `${term} — explain it in one line` };
+  }
+  const plain = text.replace(/<[^>]*>/g, '').trim();
+  const words = plain.split(/\s+/);
+  const opening = words.slice(0, Math.min(3, Math.max(1, words.length - 1))).join(' ');
+  return { label: opening, front: `Finish the thought: “${opening} …”` };
+}
+
 // Build a deck from one note (topic-flow notes yield the richest decks;
 // legacy flat notes still yield qa + key-point cards).
 export function buildDeck(note) {
@@ -78,7 +94,7 @@ export function buildDeck(note) {
         type: 'keypoint',
         src,
         subject: meta.subject || '',
-        front: `${meta.title || 'chapter'} — point ${ki + 1}`,
+        ...keyPointPrompt(kp),
         back: kp,
       });
     }

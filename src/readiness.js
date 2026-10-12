@@ -15,6 +15,7 @@ export function topicTitleOf(card) {
     const m = String(card.front || '').match(/in\s+“(.+)”\?$/);
     if (m) return m[1];
   }
+  if (card.label) return card.label;
   return card.type === 'recall' ? card.front : card.topic?.title || card.front || '';
 }
 
