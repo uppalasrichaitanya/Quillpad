@@ -1,6 +1,6 @@
 [package]
 name = "quillpad"
-version = "0.1.0"
+version = "0.2.0"
 description = "A local-first notebook app that turns chapter PDFs into brief, clear, subject-organized study notes."
 edition = "2021"
 

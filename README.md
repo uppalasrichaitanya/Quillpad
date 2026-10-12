@@ -27,11 +27,10 @@ Quillpad/
    blank, install it from
    [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
 
-On first launch Quillpad creates a notes folder and seeds it with example
-chapters. Point it at your own folder anytime via **settings** in the
-sidebar. AI features (chapter distilling, online answers, quiz generation)
-need API keys — see [Distiller endpoints](#distiller-endpoints); everything
-else (reading, searching, flashcards, exams) works fully offline.
+On first launch Quillpad asks where to keep your notes (sample chapters are
+already there to explore) and, optionally, for an AI key. Reading, searching,
+flashcards and exams work fully offline; turning chapters into notes needs a
+key — see [Getting your AI key](#getting-your-ai-key-2-minutes).
 
 > Verify your download (optional): the SHA-256 of `Quillpad.exe` is listed
 > on the release page.
@@ -49,8 +48,11 @@ Windows 10/11).
 To build the exe yourself:
 
 ```bash
-npm run tauri build
+npm run tauri build -- --no-bundle
 # → src-tauri/target/release/quillpad.exe
+
+npm test                       # frontend logic tests
+(cd src-tauri && cargo test)   # backend tests
 ```
 
 ## Features
@@ -62,8 +64,8 @@ npm run tauri build
 - **Read** — text-based PDFs are extracted directly (`pdf-extract` crate).
   **Scanned PDFs** are detected automatically: pages render via pdf.js in
   the app and are transcribed by a vision model.
-- **Distill** — the chapter text goes to an Anthropic Messages-compatible
-  endpoint, which returns a strict-JSON note draft: summary, key points,
+- **Distill** — the chapter text goes to Claude (or any Anthropic
+  Messages-compatible endpoint you configure), which returns a strict-JSON note draft: summary, key points,
   question answers, and **diagrams as typed specs** (labelled-blob /
   trend-grid / process-flow / distribution-curve).
 - **Render** — the frontend renders those specs as hand-drawn-style SVGs
@@ -78,17 +80,25 @@ npm run tauri build
 - **Export** — `export chapter` at the bottom of any note: Markdown
   (round-trips back into the app) or self-contained themed HTML.
 
-## Distiller endpoints
+## Getting your AI key (2 minutes)
 
-Keys are read from `.env` in the project root (see `.env.example`):
+Reading, searching, flashcards and exams work offline with no key. Turning
+chapters into notes, online answers and quiz generation use Claude through
+**your own** Anthropic API key — you pay Anthropic directly for what you use,
+and nothing goes through anyone else's server.
 
-- `ANTHROPIC_API_KEY` — primary: `https://seekai.cc/v1/messages`
-  (`claude-sonnet-5`) — text distill
-- `SECONDARY_TOKEN` — fallback: `https://gorouter.app/v1/messages`
-  (`claude-opus-4-8-thinking`) — vision transcription + text fallback
+1. Go to [console.anthropic.com](https://console.anthropic.com), sign up, and
+   add a little credit under **Billing**.
+2. Open **API keys → Create key** and copy it.
+3. In Quillpad: **settings → AI key**, paste, press **test**, then **save**.
 
-On failure, Quillpad automatically falls through the chain. A key set in the
-app's settings takes priority and routes to that base URL instead.
+The key is stored in Windows Credential Manager, not in a file. The default
+model is `claude-opus-5-5`; for cheaper notes set **advanced → model** to
+`claude-sonnet-5-5`. Any Anthropic Messages-compatible endpoint can be set
+under **advanced → API base URL**.
+
+*Developers:* a `.env` next to the exe or in the project root
+(`ANTHROPIC_API_KEY`, …) is still honoured as a fallback — see `.env.example`.
 
 ## Notes format
 
@@ -103,6 +113,8 @@ structured. The slug drops punctuation rather than expanding it, so
 ```
 src/            frontend (vanilla JS, no framework)
   main.js         app shell, import wizard, offline search, study + exam flows
+  onboarding.js   first-run welcome + key test
+  ai-gate.js      "add a key" prompt in front of AI actions
   cards.js        deck building and the study session runner
   readiness.js    mastery, weak pile, due deck
   exam.js         exam paper construction and scoring
@@ -112,10 +124,13 @@ src/            frontend (vanilla JS, no framework)
   styles.css      the field-notebook theme
 src-tauri/      Rust backend
   note.rs         note format: parse + render markdown
-  library.rs      settings, atomic writes, notes-folder scanning
+  library.rs      settings (+ 0.1 migration), atomic writes, notes-folder scanning
+  ai_config.rs    endpoint defaults, URL hygiene, plain-English API errors
+  keystore.rs     API key in Windows Credential Manager
   distill.rs      PDF/office extraction, prompts, endpoint failover
   commands.rs     Tauri commands (the IPC surface)
   seed.rs         first-run seed chapters
 notebook-seed/  first-run example chapters as real notes
+tests/          frontend logic tests (npm test)
 scripts/make_icon.py   generates the app icon (Pillow)
 ```
