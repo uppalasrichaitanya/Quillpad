@@ -17,6 +17,7 @@ import {
   buildDueDeck,
   dueSummary,
   withWriteCards,
+  todayPlan,
 } from './readiness.js';
 import {
   realQuestions,
@@ -1206,6 +1207,15 @@ async function showDashboard() {
   const weak = weakTopics(rawDeck, state, 6);
   const due = buildDueDeck(rawDeck, state, Date.now());
   const dueSum = dueSummary(rawDeck, state, Date.now());
+  const plan = todayPlan({
+    total: rawDeck.length,
+    seen: rawDeck.filter((c) => (state?.[c.id]?.seen || 0) > 0).length,
+    due: due.length,
+    weak: dueSum.weak,
+    fresh: dueSum.new,
+    stale: dueSum.stale,
+  });
+  const actionOf = { study: 'due', exam: 'exam', import: 'import' };
 
   const weakHtml = weak.length
     ? weak
@@ -1235,23 +1245,27 @@ async function showDashboard() {
   $('chapterView').innerHTML = `
     <div class="dash">
       <div class="dash-hero">
-        <div class="dash-eyebrow">readiness · ${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-        <h1 class="dash-title">Where you stand today</h1>
-        <div class="dash-sub">${overall.mastered} of ${overall.total} cards mastered across ${mastery.length} subject${mastery.length === 1 ? '' : 's'}</div>
+        <div class="dash-eyebrow">today · ${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+        <h1 class="dash-title">${esc(plan.title)}</h1>
+        <div class="dash-plan">${esc(plan.sub)}</div>
       </div>
 
       <div class="dash-actions">
-        <button class="dash-btn" data-dash="due">study the weak pile${due.length ? ` · ${due.length}` : ''}</button>
-        <button class="dash-btn ghost" data-dash="exam">mock exam</button>
+        <button class="dash-btn primary" data-dash="${actionOf[plan.action]}">${esc(plan.cta)}</button>
+        ${plan.action === 'study' ? '<button class="dash-btn ghost" data-dash="exam">mock exam</button>' : ''}
       </div>
 
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-tag">mastery by subject</div>
-          <div class="mastery-overall">
+          ${
+            plan.showReadiness
+              ? `<div class="mastery-overall">
             <div class="mastery-big">${overall.pct}%</div>
-            <div class="mastery-big-note">overall<br />readiness</div>
-          </div>
+            <div class="mastery-big-note">overall<br />readiness · ${overall.mastered} of ${overall.total} cards</div>
+          </div>`
+              : `<div class="mastery-empty">Your readiness shows up here once you’ve studied a few cards.</div>`
+          }
           ${mastery
             .map(
               (m) => `
@@ -1295,6 +1309,8 @@ async function showDashboard() {
           startStudy(dueNotes, due);
         } else if (btn.dataset.dash === 'exam') {
           openExamSetup();
+        } else if (btn.dataset.dash === 'import') {
+          $('importBtn').click();
         }
       });
     });

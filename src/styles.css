@@ -1587,3 +1587,31 @@ body.midnight .settings-note.err { color: #f2a99f; }
 
 /* settings can be opened from the key prompt while studying */
 #settingsModal { z-index: 95; }
+
+/* ---------- dashboard: today's plan ---------- */
+.dash-plan {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 60ch;
+  margin-top: 2px;
+}
+.dash-btn.primary {
+  background: #a04a27;
+  border-color: #a04a27;
+  color: #f8f1e4;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 12px 22px;
+}
+.dash-btn.primary:hover { background: #8a3f20; border-color: #8a3f20; color: #f8f1e4; }
+body.midnight .dash-btn.primary { background: #d0744a; border-color: #d0744a; color: #1d1813; }
+body.midnight .dash-btn.primary:hover { background: #e08a60; border-color: #e08a60; color: #1d1813; }
+.mastery-empty {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+  margin: 6px 0 18px;
+}
