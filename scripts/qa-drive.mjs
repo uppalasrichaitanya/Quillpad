@@ -39,7 +39,7 @@ const browser = await connect();
 let page = null;
 for (let i = 0; i < 40 && !page; i++) {
   const pages = await browser.pages();
-  page = pages.find((p) => !p.url().startsWith('devtools')) || null;
+  page = pages.find((p) => p.url().includes('tauri.localhost')) || null;
   if (!page) await sleep(250);
 }
 if (!page) throw new Error('app page not found');
@@ -49,6 +49,7 @@ await page.waitForSelector('.app', { timeout: 30000 });
 
 const errors = [];
 page.on('console', (m) => {
+  if (process.env.QA_VERBOSE && m.type() !== 'log') console.log(`      [${m.type()}] ${m.text().slice(0, 200)}`);
   if (m.type() === 'error') errors.push(m.text());
 });
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -59,6 +60,11 @@ await page.evaluate(() => {
     window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`),
   );
 });
+// reload only once boot has finished talking to Rust: reloading mid-request
+// makes Tauri fall back from fetch IPC to postMessage, which the export
+// step's dialog stub (request interception) can no longer see
+await page.waitForSelector('.dash-title, .chap-title', { timeout: 30000 });
+await sleep(1000);
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('#coverPage', { timeout: 30000 });
 await page.evaluate(() => {
@@ -106,6 +112,15 @@ if (phase === 'first-run') {
 if (phase === 'relaunch') {
   check('welcome does not show again', !(await visible('#welcomeModal')));
   check('midnight theme persisted', await page.evaluate(() => document.body.classList.contains('midnight')));
+}
+
+// ---- dashboard leads with today's plan ----
+if (phase === 'first-run') {
+  const title = await text('.dash-title');
+  check('dashboard leads with a plan for a new user', /^Start with \d+ new cards$/.test(title), title);
+  check('no 0% readiness before any studying', !(await visible('.mastery-big')));
+  const weakText = await text('.weak-list');
+  check('weak topics name terms, not "point N"', !/point \d/.test(weakText), weakText.slice(0, 60));
 }
 
 // ---- library ----
@@ -174,6 +189,8 @@ await sleep(600);
 await page.$$eval('.export-btn', (els) => els.find((b) => b.dataset.act === 'study').click());
 await sleep(700);
 check('study overlay opens', await visible('#studyOverlay'));
+const front = await text('.study-card-front');
+check('flashcard asks about a term, not "point N"', front && !/point \d/.test(front), front);
 await page.keyboard.press('Space');
 await sleep(400);
 await shot('08-flashcard');
@@ -223,6 +240,7 @@ if (phase === 'first-run') {
   await page.setRequestInterception(true);
   const onRequest = (req) => {
     const u = decodeURIComponent(req.url());
+    if (process.env.QA_VERBOSE && /dialog|export|write_export/.test(u)) console.log(`      [ipc] ${req.method()} ${u.split('/').pop()}`);
     if (req.method() === 'POST' && u.endsWith('/plugin:dialog|save')) {
       const name = JSON.parse(req.postData() || '{}').options?.defaultPath || 'export';
       return req.respond({
@@ -235,15 +253,41 @@ if (phase === 'first-run') {
     return req.continue();
   };
   page.on('request', onRequest);
+
+  // Some launches carry IPC over postMessage instead of fetch; then the dialog
+  // can't be stubbed and clicking export would open real Save dialogs. Probe
+  // with a harmless command first and skip the export checks in that case.
+  let sawFetch = false;
+  const probe = (req) => {
+    if (decodeURIComponent(req.url()).endsWith('/ai_status')) sawFetch = true;
+  };
+  page.on('request', probe);
+  await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('ai_status'));
+  await sleep(300);
+  page.off('request', probe);
+  if (!sawFetch) {
+    console.log('SKIP  exports — this launch uses postMessage IPC, so the Save dialog cannot be stubbed');
+    page.off('request', onRequest);
+    await page.setRequestInterception(false);
+  }
+  if (sawFetch) {
   await openChapter(1);
   const exportBtn = (sel) => page.$$eval('.export-btn', (els, s) => els.find((b) => b.matches(s)).click(), sel);
+  const { readdirSync } = await import('node:fs');
+  // wait for each file rather than a fixed pause — a cold WebView can be slow
+  const waitForFile = async (test) => {
+    for (let i = 0; i < 40; i++) {
+      if (readdirSync(outDir).some(test)) return;
+      await sleep(200);
+    }
+  };
   await exportBtn('[data-fmt="md"]');
-  await sleep(800);
+  await waitForFile((f) => f.endsWith('.md'));
   await exportBtn('[data-fmt="html"]');
-  await sleep(800);
+  await waitForFile((f) => f.endsWith('.html') && !f.includes('cheat'));
   await exportBtn('[data-act="cheat"]');
-  await sleep(1200);
-  const files = (await import('node:fs')).readdirSync(outDir);
+  await waitForFile((f) => f.includes('cheat'));
+  const files = readdirSync(outDir);
   const md = files.find((f) => f.endsWith('.md'));
   const html = files.find((f) => f.endsWith('.html') && !f.includes('cheat'));
   const cheat = files.find((f) => f.includes('cheat'));
@@ -252,6 +296,7 @@ if (phase === 'first-run') {
   check('cheat sheet export writes the subject', Boolean(cheat) && existsSync(path.join(outDir, cheat)), cheat);
   page.off('request', onRequest);
   await page.setRequestInterception(false);
+  }
 }
 
 // ---- theme ----
