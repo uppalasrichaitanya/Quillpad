@@ -98,7 +98,7 @@ model is `claude-opus-5-5`; for cheaper notes set **advanced → model** to
 under **advanced → API base URL**.
 
 *Developers:* a `.env` next to the exe or in the project root
-(`ANTHROPIC_API_KEY`, …) is still honoured as a fallback — see `.env.example`.
+(`QUILLPAD_SEEKAI_KEY`, …) is still honoured as a fallback — see `.env.example`.
 
 ## Notes format
 

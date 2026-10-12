@@ -67,10 +67,23 @@ pub struct Endpoint {
 
 /// Load the endpoints in priority order:
 /// 1. explicit user settings (if key set), then
-/// 2. .env: ANTHROPIC_API_KEY @ seekai, SECONDARY_TOKEN @ gorouter (vision),
-///    GEMINI_API_KEY @ google (text), NVIDIA_API_KEY @ nvidia (text),
-///    INCEPTION_API_KEY @ inception (mercury-2, text).
+/// 2. developer .env: QUILLPAD_SEEKAI_KEY @ seekai, QUILLPAD_GOROUTER_KEY @ gorouter (vision),
+///    QUILLPAD_INCEPTION_KEY @ inception (mercury-2, text).
 pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
+    endpoints_from(settings, &load_env())
+}
+
+/// Developer-only .env fallbacks. Only Quillpad-specific names count, so a
+/// stray .env with a standard name (ANTHROPIC_API_KEY…) in some parent folder
+/// can never send someone's own key to these gateways.
+const DEV_SEEKAI: &str = "QUILLPAD_SEEKAI_KEY";
+const DEV_GOROUTER: &str = "QUILLPAD_GOROUTER_KEY";
+const DEV_INCEPTION: &str = "QUILLPAD_INCEPTION_KEY";
+
+fn endpoints_from(
+    settings: &crate::library::Settings,
+    env: &std::collections::HashMap<String, String>,
+) -> Vec<Endpoint> {
     let mut out = Vec::new();
 
     // user-configured endpoint first, if it has a key
@@ -89,9 +102,8 @@ pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
         });
     }
 
-    // .env-based defaults: primary (text distill) + fallback (vision + text)
-    let env = load_env();
-    if let Some(key) = env.get("ANTHROPIC_API_KEY") {
+    // developer .env chain: primary (text distill) + fallback (vision + text)
+    if let Some(key) = env.get(DEV_SEEKAI) {
         if !key.is_empty() {
             out.push(Endpoint {
                 name: "seekai",
@@ -105,7 +117,7 @@ pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
             });
         }
     }
-    if let Some(key) = env.get("SECONDARY_TOKEN") {
+    if let Some(key) = env.get(DEV_GOROUTER) {
         if !key.is_empty() {
             out.push(Endpoint {
                 name: "gorouter",
@@ -119,7 +131,7 @@ pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
             });
         }
     }
-    if let Some(key) = env.get("INCEPTION_API_KEY") {
+    if let Some(key) = env.get(DEV_INCEPTION) {
         if !key.is_empty() {
             out.push(Endpoint {
                 name: "inception",
@@ -201,7 +213,7 @@ pub fn has_env_endpoint() -> bool {
 }
 
 fn env_has_endpoint(env: &std::collections::HashMap<String, String>) -> bool {
-    ["ANTHROPIC_API_KEY", "SECONDARY_TOKEN", "INCEPTION_API_KEY"]
+    [DEV_SEEKAI, DEV_GOROUTER, DEV_INCEPTION]
         .iter()
         .any(|k| env.get(*k).is_some_and(|v| !v.is_empty()))
 }
@@ -1143,14 +1155,43 @@ mod tests {
         assert!(no.contains("declined"));
     }
 
+    fn env_of(pairs: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    }
+
+    #[test]
+    fn standard_key_names_in_a_stray_env_are_ignored() {
+        // a friend's own .env must never reach a third-party gateway
+        let env = env_of(&[("ANTHROPIC_API_KEY", "sk-ant-real"), ("OPENAI_API_KEY", "sk-x")]);
+        let eps = endpoints_from(&custom_settings("", "", ""), &env);
+        assert!(eps.is_empty(), "{:?}", eps.iter().map(|e| e.name).collect::<Vec<_>>());
+        assert!(!env_has_endpoint(&env));
+    }
+
+    #[test]
+    fn quillpad_prefixed_dev_keys_enable_the_dev_chain() {
+        let env = env_of(&[("QUILLPAD_SEEKAI_KEY", "a"), ("QUILLPAD_GOROUTER_KEY", "b")]);
+        let eps = endpoints_from(&custom_settings("", "", ""), &env);
+        let names: Vec<_> = eps.iter().map(|e| e.name).collect();
+        assert_eq!(names, ["seekai", "gorouter"]);
+        assert!(env_has_endpoint(&env));
+    }
+
+    #[test]
+    fn user_key_comes_before_dev_chain() {
+        let env = env_of(&[("QUILLPAD_SEEKAI_KEY", "a")]);
+        let eps = endpoints_from(&custom_settings("", "", "sk-ant-user"), &env);
+        assert_eq!(eps[0].name, "custom");
+    }
+
     #[test]
     fn env_endpoint_needs_a_non_empty_known_key() {
         let mut env = std::collections::HashMap::new();
         assert!(!env_has_endpoint(&env));
-        env.insert("ANTHROPIC_API_KEY".to_string(), String::new());
+        env.insert("QUILLPAD_SEEKAI_KEY".to_string(), String::new());
         env.insert("UNRELATED".to_string(), "x".to_string());
         assert!(!env_has_endpoint(&env));
-        env.insert("SECONDARY_TOKEN".to_string(), "tok".to_string());
+        env.insert("QUILLPAD_GOROUTER_KEY".to_string(), "tok".to_string());
         assert!(env_has_endpoint(&env));
     }
 }
