@@ -70,7 +70,7 @@ late-night revision.
 ## Getting started
 
 1. Go to [**Releases**](https://github.com/uppalasrichaitanya/Quillpad/releases)
-   and download `Quillpad.exe` from the latest release (about 14 MB,
+   and download `Quillpad.exe` from the latest release (about 20 MB,
    portable, no installer).
 2. Double-click it. If Windows SmartScreen says *"Windows protected your PC"*
    (the app is unsigned), choose **More info, then Run anyway**.
@@ -142,9 +142,9 @@ See [What works without a key](#what-works-without-a-key).
 Not yet. Quillpad is Windows-only for now.
 
 **Where are my notes stored?**
-In the folder you picked on first launch,
-as `.md` files grouped by subject. The path is shown at the top of the
-sidebar.
+In the folder you picked on first launch, as `.md` files grouped by
+subject. The path is shown at the top of the sidebar, and you can switch to
+another folder anytime in **settings**.
 
 **Can I import PowerPoint or Word files?**
 Yes: PDF, Word and PowerPoint, including scanned PDFs.
@@ -217,6 +217,7 @@ src/            frontend (vanilla JS, no framework)
   main.js         app shell, import wizard, offline search, study + exam flows
   onboarding.js   first-run welcome + key test
   ai-gate.js      "add a key" prompt in front of AI actions
+  import-guess.js prefill subject / chapter / title from a file name
   cards.js        deck building and the study session runner
   readiness.js    mastery, weak pile, due deck
   exam.js         exam paper construction and scoring
