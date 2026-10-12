@@ -28,6 +28,7 @@ pub fn run() {
             commands::set_llm_settings,
             commands::ai_status,
             commands::complete_onboarding,
+            commands::test_connection,
             commands::set_notes_dir,
             commands::resolve_notes_dir,
             commands::list_library,

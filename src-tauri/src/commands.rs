@@ -405,3 +405,69 @@ pub fn save_exam_history(app: AppHandle, history: serde_json::Value) -> Result<(
     let text = serde_json::to_string_pretty(&history).map_err(error)?;
     write_atomic(&p, text.as_bytes())
 }
+
+/// Check a key without spending tokens: GET /v1/models. Some compatible
+/// gateways lack that route, so a 404 falls back to a 1-token message.
+#[tauri::command]
+pub async fn test_connection(
+    app: AppHandle,
+    base_url: String,
+    model: String,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    let key = match api_key.filter(|k| !k.trim().is_empty()) {
+        Some(k) => k.trim().to_string(),
+        None => settings_with_key(&app)?.llm_api_key,
+    };
+    if key.is_empty() {
+        return Err("paste a key first".into());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(error)?;
+    let unreachable = |e: reqwest::Error| {
+        if e.is_connect() || e.is_timeout() {
+            "couldn't reach the AI service — check your internet connection".to_string()
+        } else {
+            format!("request failed: {e}")
+        }
+    };
+
+    let resp = client
+        .get(crate::ai_config::models_url(&base_url))
+        .header("x-api-key", &key)
+        .header("anthropic-version", "2023-06-01")
+        .send()
+        .await
+        .map_err(unreachable)?;
+    let status = resp.status().as_u16();
+    if (200..300).contains(&status) {
+        return Ok("connected".into());
+    }
+    if status != 404 {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::ai_config::describe_status(status, &body));
+    }
+
+    let body = serde_json::json!({
+        "model": crate::ai_config::effective_model(&model),
+        "max_tokens": 1,
+        "messages": [{"role": "user", "content": "ping"}],
+    });
+    let resp = client
+        .post(crate::ai_config::messages_url(&base_url))
+        .header("x-api-key", &key)
+        .header("anthropic-version", "2023-06-01")
+        .json(&body)
+        .send()
+        .await
+        .map_err(unreachable)?;
+    let status = resp.status().as_u16();
+    if (200..300).contains(&status) {
+        Ok("connected".into())
+    } else {
+        let body = resp.text().await.unwrap_or_default();
+        Err(crate::ai_config::describe_status(status, &body))
+    }
+}
