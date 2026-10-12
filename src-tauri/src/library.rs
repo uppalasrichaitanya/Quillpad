@@ -68,6 +68,26 @@ impl Settings {
         let text = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
         write_atomic(&p, text.as_bytes())
     }
+
+    /// Load settings and repair what 0.1 left behind: a plaintext API key
+    /// (handed to `store_key`, then dropped from disk) and the OpenAI-shaped
+    /// defaults. Saves only when something changed.
+    pub fn load_migrated(
+        app_data: &Path,
+        store_key: impl FnOnce(&str) -> Result<(), String>,
+    ) -> Result<Settings, String> {
+        let mut settings = Settings::load(app_data)?;
+        let mut dirty = crate::ai_config::migrate_legacy(&mut settings);
+        if let Some(plain) = crate::keystore::take_plaintext(&mut settings) {
+            // store first: if that fails the key stays on disk, not lost
+            store_key(&plain)?;
+            dirty = true;
+        }
+        if dirty {
+            settings.save(app_data)?;
+        }
+        Ok(settings)
+    }
 }
 
 /// Replace a file in one step: content lands in a sibling temp file first, so a
@@ -173,4 +193,56 @@ pub fn list_notes(root: &Path) -> Result<Vec<LibraryEntry>, String> {
         .then_with(|| a.file.cmp(&b.file))
     });
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("quillpad-test-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn plaintext_key_moves_to_store_and_leaves_disk() {
+        let d = temp_dir("migrate");
+        fs::write(
+            d.join("settings.json"),
+            r#"{"llm_base_url":"https://api.openai.com/v1","llm_model":"gpt-4o-mini","llm_api_key":"sk-ant-1","theme":"midnight"}"#,
+        )
+        .unwrap();
+        let mut stored = None;
+        let s = Settings::load_migrated(&d, |k| {
+            stored = Some(k.to_string());
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(stored.as_deref(), Some("sk-ant-1"));
+        assert_eq!(s.llm_model, crate::ai_config::DEFAULT_MODEL);
+        assert_eq!(s.theme.as_deref(), Some("midnight"));
+        let on_disk = fs::read_to_string(d.join("settings.json")).unwrap();
+        assert!(!on_disk.contains("sk-ant-1"), "{on_disk}");
+        assert!(on_disk.contains("claude-opus-5-5"), "{on_disk}");
+    }
+
+    #[test]
+    fn store_failure_keeps_key_on_disk() {
+        let d = temp_dir("storefail");
+        fs::write(d.join("settings.json"), r#"{"llm_api_key":"sk-ant-2"}"#).unwrap();
+        let r = Settings::load_migrated(&d, |_| Err("no store".into()));
+        assert!(r.is_err());
+        let on_disk = fs::read_to_string(d.join("settings.json")).unwrap();
+        assert!(on_disk.contains("sk-ant-2"), "key must not be lost: {on_disk}");
+    }
+
+    #[test]
+    fn clean_settings_are_not_rewritten() {
+        let d = temp_dir("clean");
+        let s = Settings::load_migrated(&d, |_| panic!("no key to store")).unwrap();
+        assert!(!s.onboarded);
+        assert!(!d.join("settings.json").exists());
+    }
 }

@@ -1,5 +1,6 @@
 mod ai_config;
 mod commands;
+mod keystore;
 mod distill;
 mod library;
 mod note;
@@ -25,6 +26,8 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::set_llm_settings,
+            commands::ai_status,
+            commands::complete_onboarding,
             commands::set_notes_dir,
             commands::resolve_notes_dir,
             commands::list_library,
@@ -49,7 +52,15 @@ pub fn run() {
             use tauri::Manager;
             let data_dir = app.path().app_data_dir()?;
             let _ = std::fs::create_dir_all(&data_dir);
-            let settings = library::Settings::load(&data_dir)?;
+            // move a 0.1 plaintext key into the credential store before any
+            // other command re-saves settings.json (which never writes keys)
+            let settings = match library::Settings::load_migrated(&data_dir, keystore::set) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("settings migration deferred: {e}");
+                    library::Settings::load(&data_dir)?
+                }
+            };
             let root = library::notes_root(&data_dir, &settings)?;
             let _ = std::fs::create_dir_all(&root);
             seed::seed_if_empty(&root)?;

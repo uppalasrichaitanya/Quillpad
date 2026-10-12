@@ -187,6 +187,17 @@ fn load_env() -> std::collections::HashMap<String, String> {
     map
 }
 
+/// True when a developer .env supplies at least one endpoint key.
+pub fn has_env_endpoint() -> bool {
+    env_has_endpoint(&load_env())
+}
+
+fn env_has_endpoint(env: &std::collections::HashMap<String, String>) -> bool {
+    ["ANTHROPIC_API_KEY", "SECONDARY_TOKEN", "INCEPTION_API_KEY"]
+        .iter()
+        .any(|k| env.get(*k).is_some_and(|v| !v.is_empty()))
+}
+
 /// Result of a successful import: the saved note plus its on-disk filename.
 #[derive(Debug, Clone, Serialize)]
 pub struct ImportOutcome {
@@ -1044,5 +1055,21 @@ pub fn assemble_note(req: &DistillRequest, draft: DistillDraft) -> Note {
         qa: draft.qa,
         recap: draft.recap,
         topics,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn env_endpoint_needs_a_non_empty_known_key() {
+        let mut env = std::collections::HashMap::new();
+        assert!(!env_has_endpoint(&env));
+        env.insert("ANTHROPIC_API_KEY".to_string(), String::new());
+        env.insert("UNRELATED".to_string(), "x".to_string());
+        assert!(!env_has_endpoint(&env));
+        env.insert("SECONDARY_TOKEN".to_string(), "tok".to_string());
+        assert!(env_has_endpoint(&env));
     }
 }

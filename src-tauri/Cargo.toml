@@ -24,6 +24,7 @@ pdf-extract = "0.7"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["time"] }
+keyring = { version = "3", features = ["windows-native"] }
 
 [profile.release]
 strip = true
