@@ -1,4 +1,4 @@
-/** Screenshots the hero as public/og.png (1200x630 @2x).
+/** Screenshots the hero as public/og.png (1200x630).
  *  Usage: node scripts/make-og.mjs [--url=http://localhost:4173] */
 
 import puppeteer from "puppeteer-core";
@@ -27,13 +27,13 @@ fs.mkdirSync(outDir, { recursive: true });
 const browser = await puppeteer.launch({
   executablePath: EDGE,
   args: ["--enable-unsafe-swiftshader", "--disable-gpu-sandbox", "--no-sandbox"],
-  defaultViewport: { width: 1200, height: 630, deviceScaleFactor: 2 },
+  defaultViewport: { width: 1200, height: 630, deviceScaleFactor: 1 },
 });
 
 try {
   const page = await browser.newPage();
   await page.goto(URL, { waitUntil: "networkidle0", timeout: 60000 });
-  await new Promise((r) => setTimeout(r, 2500));
+  await new Promise((r) => setTimeout(r, 4500));
   const target = path.join(outDir, "og.png");
   await page.screenshot({
     path: target,
@@ -43,7 +43,7 @@ try {
   // at build time, so regenerating afterwards would otherwise leave dist
   // serving the previous card.
   const bytes = fs.readFileSync(target);
-  for (const dir of ["dist", "dist-artifact"]) {
+  for (const dir of ["dist"]) {
     const built = path.join(root, dir);
     if (!fs.existsSync(built)) continue;
     fs.writeFileSync(path.join(built, "og.png"), bytes);
