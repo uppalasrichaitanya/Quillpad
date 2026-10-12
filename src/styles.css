@@ -136,19 +136,22 @@ body {
 .cover-mark { color: var(--ink); }
 /* wordmark's "i": dotless stem + suspended rust ink-droplet as its tittle */
 .i-stem {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+  /* the dotless ı stays ordinary text on the baseline; the droplet is pinned
+     above it, so the letter can never drop out of line */
+  position: relative;
+  display: inline-block;
   line-height: 1;
-  vertical-align: baseline;
   margin-left: 0.02em;
 }
 .i-dot {
+  position: absolute;
+  left: 50%;
+  top: 0.1em;
+  transform: translateX(-50%);
   width: 0.2em;
   height: 0.26em;
   background: var(--rust);
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
-  margin-bottom: 0.06em;
 }
 .notes-dir {
   font-family: 'IBM Plex Mono', monospace;
@@ -1584,3 +1587,49 @@ body.midnight .settings-note.err { color: #f2a99f; }
 
 /* settings can be opened from the key prompt while studying */
 #settingsModal { z-index: 95; }
+
+/* ---------- dashboard: today's plan ---------- */
+.dash-plan {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 60ch;
+  margin-top: 2px;
+}
+.dash-btn.primary {
+  background: #a04a27;
+  border-color: #a04a27;
+  color: #f8f1e4;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 12px 22px;
+}
+.dash-btn.primary:hover { background: #8a3f20; border-color: #8a3f20; color: #f8f1e4; }
+body.midnight .dash-btn.primary { background: #d0744a; border-color: #d0744a; color: #1d1813; }
+body.midnight .dash-btn.primary:hover { background: #e08a60; border-color: #e08a60; color: #1d1813; }
+.mastery-empty {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+  margin: 6px 0 18px;
+}
+
+/* ---------- drop a chapter file anywhere to import ---------- */
+body.drop-ready::after {
+  content: 'Drop to import this chapter';
+  position: fixed;
+  inset: 16px;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--rust);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--rust);
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 28px;
+  pointer-events: none;
+}

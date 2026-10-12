@@ -15,6 +15,7 @@ export function topicTitleOf(card) {
     const m = String(card.front || '').match(/in\s+“(.+)”\?$/);
     if (m) return m[1];
   }
+  if (card.label) return card.label;
   return card.type === 'recall' ? card.front : card.topic?.title || card.front || '';
 }
 
@@ -132,4 +133,52 @@ export function dueSummary(cards, state, now = Date.now()) {
     else if (now - (st.lastSeen || 0) > staleMs) out.stale += 1;
   }
   return out;
+}
+
+// What the dashboard leads with today. Input counts come from the deck and
+// study state: total cards, cards ever seen, the due deck size, and its
+// make-up (weak = missed before, fresh = never seen, stale = not seen lately).
+// Returns the headline, the reason, the main button and whether a readiness
+// percentage means anything yet (it doesn't before any studying).
+export function todayPlan({ total, seen, due, weak, fresh, stale }) {
+  const cards = (n) => `${n} card${n === 1 ? '' : 's'}`;
+  const minutes = (n) => `about ${Math.max(1, Math.ceil(n / 2))} min`;
+  if (!total) {
+    return {
+      action: 'import',
+      title: 'Import your first chapter',
+      sub: 'Drop in a chapter PDF and Quillpad turns it into a note, flashcards and exam questions.',
+      cta: 'import a chapter',
+      showReadiness: false,
+    };
+  }
+  if (!seen) {
+    return {
+      action: 'study',
+      title: `Start with ${fresh} new cards`,
+      sub: `${minutes(due)} — you’ll see what you already know, and Quillpad will remember the rest.`,
+      cta: 'start studying',
+      showReadiness: false,
+    };
+  }
+  if (due) {
+    const parts = [];
+    if (weak) parts.push(`${weak} you missed`);
+    if (fresh) parts.push(`${fresh} new`);
+    if (stale) parts.push(`${stale} due for a refresh`);
+    return {
+      action: 'study',
+      title: `Revise ${cards(due)} today`,
+      sub: `${parts.join(', ')} — ${minutes(due)}.`,
+      cta: 'revise now',
+      showReadiness: true,
+    };
+  }
+  return {
+    action: 'exam',
+    title: 'You’re up to date',
+    sub: 'Nothing is due. Test yourself with a timed mock exam.',
+    cta: 'take a mock exam',
+    showReadiness: true,
+  };
 }

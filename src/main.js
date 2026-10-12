@@ -9,6 +9,8 @@ import { renderDiagram, diagramFrame, setDiagramTheme } from './diagrams.js';
 import { probePdf, renderPdfPages } from './pdfr.js';
 import { refreshAiStatus, requireKey, onOpenSettings } from './ai-gate.js';
 import { maybeShowWelcome, testKey } from './onboarding.js';
+import { guessChapterMeta } from './import-guess.js';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { buildDeck, mergeDecks, Session, skeletonOf, trapOf } from './cards.js';
 import {
   masteryBySubject,
@@ -17,6 +19,7 @@ import {
   buildDueDeck,
   dueSummary,
   withWriteCards,
+  todayPlan,
 } from './readiness.js';
 import {
   realQuestions,
@@ -872,9 +875,9 @@ function cancelImport() {
   pickedPdf = null;
 }
 
-$('importBtn').addEventListener('click', () => {
+function openImportWizard() {
   // ask for a key before the user fills the wizard, not after
-  if (!requireKey('Turning a chapter into notes')) return;
+  if (!requireKey('Turning a chapter into notes')) return false;
   // reset form
   ++importGeneration;
   pickedPdf = null;
@@ -890,9 +893,63 @@ $('importBtn').addEventListener('click', () => {
     .map((s) => `<option value="${esc(s)}"></option>`)
     .join('');
   $('importModal').removeAttribute('hidden');
-});
+  return true;
+}
+$('importBtn').addEventListener('click', openImportWizard);
+
+// Take a chosen or dropped chapter file and prefill what the name tells us;
+// never overwrite what the user already typed.
+function useChapterFile(path) {
+  pickedPdf = path;
+  $('pdfPath').textContent = path;
+  const guess = guessChapterMeta(path, [...new Set(library.map((e) => e.subject))]);
+  if (!$('impSubject').value && guess.subject) $('impSubject').value = guess.subject;
+  if (!$('impNum').value && guess.num) $('impNum').value = guess.num;
+  if (!$('impTitle').value && guess.title) $('impTitle').value = guess.title;
+  // land the cursor on the first thing still missing
+  const next = ['impSubject', 'impNum', 'impTitle'].find((id) => !$(id).value);
+  $(next || 'impQuestions').focus();
+}
+
+// Drop a chapter file anywhere on the window to import it.
+const CHAPTER_EXT = /\.(pdf|docx|pptx)$/i;
+getCurrentWebview()
+  .onDragDropEvent(({ payload }) => {
+    const over = document.body;
+    if (payload.type === 'enter') {
+      over.classList.toggle('drop-ready', (payload.paths || []).some((p) => CHAPTER_EXT.test(p)));
+    } else if (payload.type === 'leave') {
+      over.classList.remove('drop-ready');
+    } else if (payload.type === 'drop') {
+      over.classList.remove('drop-ready');
+      const file = (payload.paths || []).find((p) => CHAPTER_EXT.test(p));
+      if (!file) {
+        if ((payload.paths || []).length) flash('drop a PDF, Word or PowerPoint chapter file', true);
+        return;
+      }
+      if ($('importModal').hasAttribute('hidden') && !openImportWizard()) return;
+      useChapterFile(file);
+    }
+  })
+  .catch(() => {
+    /* not running inside Tauri (e.g. plain vite dev) */
+  });
+
+// A long wait reads better with a clock on it.
+let statusTimer = null;
+function setWorking(label, hint) {
+  clearInterval(statusTimer);
+  const t0 = Date.now();
+  const tick = () => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    setStatus(`${label} · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}${hint ? ` — ${hint}` : ''}`, false, true);
+  };
+  tick();
+  statusTimer = setInterval(tick, 1000);
+}
 
 function setStatus(msg, isErr = false, spinning = false) {
+  if (!spinning) clearInterval(statusTimer);
   const el = $('importStatus');
   if (!msg && !spinning) {
     el.setAttribute('hidden', '');
@@ -923,21 +980,7 @@ $('pickPdfBtn').addEventListener('click', async () => {
       { name: 'PowerPoint', extensions: ['pptx'] },
     ],
   });
-  if (f) {
-    pickedPdf = f;
-    $('pdfPath').textContent = f;
-    // prefill title from filename if empty: "04-cell-structure" → num 04, title guess
-    const stem = f.split(/[\\/]/).pop().replace(/\.(pdf|docx|pptx)$/i, '');
-    if (!$('impTitle').value) {
-      const m = stem.match(/^(\d+)[\s_-]+(.+)$/);
-      if (m) {
-        if (!$('impNum').value) $('impNum').value = m[1];
-        $('impTitle').value = m[2].replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
-      } else {
-        $('impTitle').value = stem.replace(/[-_]+/g, ' ').trim();
-      }
-    }
-  }
+  if (f) useChapterFile(f);
 });
 
 $('importGo').addEventListener('click', async () => {
@@ -973,7 +1016,7 @@ $('importGo').addEventListener('click', async () => {
 
       let outcome;
       if (hadText) {
-        setStatus('distilling — extracting chapter & answering…', false, true);
+        setWorking('writing your note', 'usually 30 seconds to 2 minutes');
         outcome = await invoke('import_chapter', {
           req: { subject, num, title, pdf_path: path, questions, allow_overwrite: allowOverwrite },
           pageImages: null,
@@ -984,7 +1027,7 @@ $('importGo').addEventListener('click', async () => {
           onProgress: (n, t) => setStatus(`rendering pages ${n}/${t}…`, false, true),
         });
         if (stale()) return null;
-        setStatus(`transcribing ${total} scanned pages (vision)…`, false, true);
+        setWorking(`reading ${total} scanned pages`, 'scans take a little longer');
         outcome = await invoke('import_chapter', {
           req: { subject, num, title, pdf_path: path, questions, allow_overwrite: allowOverwrite },
           pageImages: pages,
@@ -1206,6 +1249,15 @@ async function showDashboard() {
   const weak = weakTopics(rawDeck, state, 6);
   const due = buildDueDeck(rawDeck, state, Date.now());
   const dueSum = dueSummary(rawDeck, state, Date.now());
+  const plan = todayPlan({
+    total: rawDeck.length,
+    seen: rawDeck.filter((c) => (state?.[c.id]?.seen || 0) > 0).length,
+    due: due.length,
+    weak: dueSum.weak,
+    fresh: dueSum.new,
+    stale: dueSum.stale,
+  });
+  const actionOf = { study: 'due', exam: 'exam', import: 'import' };
 
   const weakHtml = weak.length
     ? weak
@@ -1235,23 +1287,27 @@ async function showDashboard() {
   $('chapterView').innerHTML = `
     <div class="dash">
       <div class="dash-hero">
-        <div class="dash-eyebrow">readiness · ${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-        <h1 class="dash-title">Where you stand today</h1>
-        <div class="dash-sub">${overall.mastered} of ${overall.total} cards mastered across ${mastery.length} subject${mastery.length === 1 ? '' : 's'}</div>
+        <div class="dash-eyebrow">today · ${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+        <h1 class="dash-title">${esc(plan.title)}</h1>
+        <div class="dash-plan">${esc(plan.sub)}</div>
       </div>
 
       <div class="dash-actions">
-        <button class="dash-btn" data-dash="due">study the weak pile${due.length ? ` · ${due.length}` : ''}</button>
-        <button class="dash-btn ghost" data-dash="exam">mock exam</button>
+        <button class="dash-btn primary" data-dash="${actionOf[plan.action]}">${esc(plan.cta)}</button>
+        ${plan.action === 'study' ? '<button class="dash-btn ghost" data-dash="exam">mock exam</button>' : ''}
       </div>
 
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-tag">mastery by subject</div>
-          <div class="mastery-overall">
+          ${
+            plan.showReadiness
+              ? `<div class="mastery-overall">
             <div class="mastery-big">${overall.pct}%</div>
-            <div class="mastery-big-note">overall<br />readiness</div>
-          </div>
+            <div class="mastery-big-note">overall<br />readiness · ${overall.mastered} of ${overall.total} cards</div>
+          </div>`
+              : `<div class="mastery-empty">Your readiness shows up here once you’ve studied a few cards.</div>`
+          }
           ${mastery
             .map(
               (m) => `
@@ -1295,6 +1351,8 @@ async function showDashboard() {
           startStudy(dueNotes, due);
         } else if (btn.dataset.dash === 'exam') {
           openExamSetup();
+        } else if (btn.dataset.dash === 'import') {
+          $('importBtn').click();
         }
       });
     });
