@@ -136,19 +136,22 @@ body {
 .cover-mark { color: var(--ink); }
 /* wordmark's "i": dotless stem + suspended rust ink-droplet as its tittle */
 .i-stem {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+  /* the dotless ı stays ordinary text on the baseline; the droplet is pinned
+     above it, so the letter can never drop out of line */
+  position: relative;
+  display: inline-block;
   line-height: 1;
-  vertical-align: baseline;
   margin-left: 0.02em;
 }
 .i-dot {
+  position: absolute;
+  left: 50%;
+  top: 0.1em;
+  transform: translateX(-50%);
   width: 0.2em;
   height: 0.26em;
   background: var(--rust);
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
-  margin-bottom: 0.06em;
 }
 .notes-dir {
   font-family: 'IBM Plex Mono', monospace;
