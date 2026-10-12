@@ -5,7 +5,7 @@ import './styles.css';
 import { invoke } from '@tauri-apps/api/core';
 import { open as dialogOpen, save as dialogSave } from '@tauri-apps/plugin-dialog';
 import { quillMark, quillMarkFull } from './quill.js';
-import { renderDiagram, diagramFrame } from './diagrams.js';
+import { renderDiagram, diagramFrame, setDiagramTheme } from './diagrams.js';
 import { probePdf, renderPdfPages } from './pdfr.js';
 import { refreshAiStatus, requireKey, onOpenSettings } from './ai-gate.js';
 import { maybeShowWelcome, testKey } from './onboarding.js';
@@ -873,6 +873,8 @@ function cancelImport() {
 }
 
 $('importBtn').addEventListener('click', () => {
+  // ask for a key before the user fills the wizard, not after
+  if (!requireKey('Turning a chapter into notes')) return;
   // reset form
   ++importGeneration;
   pickedPdf = null;
