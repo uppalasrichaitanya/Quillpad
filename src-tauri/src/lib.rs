@@ -1,3 +1,4 @@
+mod ai_config;
 mod commands;
 mod distill;
 mod library;

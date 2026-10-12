@@ -19,19 +19,25 @@ pub struct Settings {
     pub llm_base_url: String,
     #[serde(default = "default_model")]
     pub llm_model: String,
-    #[serde(default)]
+    /// Runtime only: filled from the OS credential store. Read from disk solely
+    /// to migrate keys saved by 0.1 (which stored them in plain text); never
+    /// written back.
+    #[serde(default, skip_serializing)]
     pub llm_api_key: String,
     /// "midnight" for the dark theme; absent = default cream paper.
     #[serde(default)]
     pub theme: Option<String>,
+    /// Set once the first-run welcome has been completed or skipped.
+    #[serde(default)]
+    pub onboarded: bool,
 }
 
 fn default_base_url() -> String {
-    "https://api.openai.com/v1".to_string()
+    crate::ai_config::DEFAULT_BASE_URL.to_string()
 }
 
 fn default_model() -> String {
-    "gpt-4o-mini".to_string()
+    crate::ai_config::DEFAULT_MODEL.to_string()
 }
 
 impl Default for Settings {
@@ -42,6 +48,7 @@ impl Default for Settings {
             llm_model: default_model(),
             llm_api_key: String::new(),
             theme: None,
+            onboarded: false,
         }
     }
 }
