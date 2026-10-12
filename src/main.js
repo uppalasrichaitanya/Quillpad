@@ -5,8 +5,10 @@ import './styles.css';
 import { invoke } from '@tauri-apps/api/core';
 import { open as dialogOpen, save as dialogSave } from '@tauri-apps/plugin-dialog';
 import { quillMark, quillMarkFull } from './quill.js';
-import { renderDiagram, diagramFrame } from './diagrams.js';
+import { renderDiagram, diagramFrame, setDiagramTheme } from './diagrams.js';
 import { probePdf, renderPdfPages } from './pdfr.js';
+import { refreshAiStatus, requireKey, onOpenSettings } from './ai-gate.js';
+import { maybeShowWelcome, testKey } from './onboarding.js';
 import { buildDeck, mergeDecks, Session, skeletonOf, trapOf } from './cards.js';
 import {
   masteryBySubject,
@@ -828,6 +830,7 @@ document.querySelector('.brand').addEventListener('click', () => {
 // ---------- mode toggle (revision agent ships later) ----------
 
 $('modeOnline').addEventListener('click', () => {
+  if (!requireKey('Online answers')) return;
   mode = 'online';
   $('modeOnline').classList.add('on');
   $('modeOffline').classList.remove('on');
@@ -870,6 +873,8 @@ function cancelImport() {
 }
 
 $('importBtn').addEventListener('click', () => {
+  // ask for a key before the user fills the wizard, not after
+  if (!requireKey('Turning a chapter into notes')) return;
   // reset form
   ++importGeneration;
   pickedPdf = null;
@@ -951,6 +956,7 @@ $('importGo').addEventListener('click', async () => {
     setStatus('subject and title are needed', true);
     return;
   }
+  if (!requireKey('Turning a chapter into notes')) return;
   const questions = $('impQuestions').value
     .split('\n')
     .map((l) => l.trim())
@@ -1019,14 +1025,49 @@ $('importGo').addEventListener('click', async () => {
   }
 });
 
-$('settingsBtn').addEventListener('click', async () => {
+async function openSettings() {
   const s = await invoke('get_settings');
-  $('llmBaseUrl').value = s.llm_base_url || '';
-  $('llmModel').value = s.llm_model || '';
-  $('llmKey').value = s.llm_api_key || '';
-  const dir = await invoke('resolve_notes_dir');
-  $('settingsDirPath').textContent = dir;
+  const st = await refreshAiStatus();
+  // defaults show as empty fields so the placeholders explain them
+  $('llmBaseUrl').value = s.llm_base_url === 'https://api.anthropic.com' ? '' : s.llm_base_url || '';
+  $('llmModel').value = s.llm_model === 'claude-opus-5-5' ? '' : s.llm_model || '';
+  $('llmKey').value = '';
+  $('llmKey').placeholder = st.key_set ? '•••••••• saved — paste to replace' : 'sk-ant-…';
+  $('llmClearKey').hidden = !st.key_set;
+  $('llmKeyNote').textContent =
+    st.key_error || 'get one at console.anthropic.com → API keys · stored in Windows Credential Manager';
+  $('llmKeyNote').classList.remove('ok');
+  $('llmKeyNote').classList.toggle('err', Boolean(st.key_error));
+  $('settingsDirPath').textContent = await invoke('resolve_notes_dir');
   $('settingsModal').removeAttribute('hidden');
+}
+onOpenSettings(openSettings);
+$('settingsBtn').addEventListener('click', openSettings);
+
+$('llmTest').addEventListener('click', () =>
+  testKey($('llmKey'), $('llmKeyNote'), {
+    baseUrl: $('llmBaseUrl').value.trim(),
+    model: $('llmModel').value.trim(),
+  }),
+);
+
+$('llmClearKey').addEventListener('click', async () => {
+  try {
+    await invoke('set_llm_settings', {
+      baseUrl: $('llmBaseUrl').value.trim(),
+      model: $('llmModel').value.trim(),
+      apiKey: null,
+      clearKey: true,
+    });
+  } catch (e) {
+    $('llmKeyNote').textContent = String(e);
+    $('llmKeyNote').classList.add('err');
+    return;
+  }
+  await refreshAiStatus();
+  $('llmClearKey').hidden = true;
+  $('llmKey').placeholder = 'sk-ant-…';
+  flash('key removed');
 });
 
 $('chooseDirBtn').addEventListener('click', async () => {
@@ -1045,11 +1086,19 @@ $('chooseDirBtn').addEventListener('click', async () => {
 });
 
 $('settingsSave').addEventListener('click', async () => {
-  await invoke('set_llm_settings', {
-    baseUrl: $('llmBaseUrl').value.trim(),
-    model: $('llmModel').value.trim(),
-    apiKey: $('llmKey').value.trim(),
-  });
+  try {
+    await invoke('set_llm_settings', {
+      baseUrl: $('llmBaseUrl').value.trim(),
+      model: $('llmModel').value.trim(),
+      apiKey: $('llmKey').value.trim() || null,
+      clearKey: false,
+    });
+  } catch (e) {
+    $('llmKeyNote').textContent = String(e);
+    $('llmKeyNote').classList.add('err');
+    return;
+  }
+  await refreshAiStatus();
   $('settingsModal').setAttribute('hidden', '');
   flash('settings saved');
 });
@@ -1409,6 +1458,7 @@ async function studyKeys(e) {
 // ---------- quiz mode ----------
 
 async function startQuiz() {
+  if (!requireKey('Quiz generation')) return;
   const wrap = $('studyCardWrap');
   if (!studyNotes?.length) return;
   const generation = studyGeneration;
@@ -2348,6 +2398,15 @@ async function boot() {
     examHistory = await invoke('load_exam_history');
   } catch { /* no history yet */ }
   showDashboard();
+  await maybeShowWelcome({
+    onFolderChanged: async () => {
+      $('notesDir').textContent = await invoke('resolve_notes_dir');
+      current = null;
+      await refreshLibrary();
+      await buildSearchIndex();
+      showDashboard();
+    },
+  });
 }
 
 boot();

@@ -165,11 +165,52 @@
       </div>
     </div>
 
+    <!-- no-key prompt -->
+    <div class="key-prompt" id="keyPrompt" hidden role="dialog" aria-labelledby="keyPromptTitle">
+      <div class="key-prompt-title" id="keyPromptTitle"><span class="key-prompt-what"></span> needs an AI key</div>
+      <p class="key-prompt-body">Reading, search, flashcards and exams work offline. Turning chapters into notes and AI answers need your own API key &mdash; it takes about two minutes.</p>
+      <div class="modal-actions">
+        <button class="btn key-prompt-close">not now</button>
+        <button class="btn btn-accent key-prompt-open">add a key</button>
+      </div>
+    </div>
+
+    <!-- first-run welcome -->
+    <div class="modal-back" id="welcomeModal" hidden>
+      <div class="modal welcome">
+        <div class="modal-eyebrow">welcome</div>
+        <h3 class="modal-title">Set up your notebook</h3>
+
+        <div class="settings-row">
+          <label class="settings-label">1 &middot; where your notes live</label>
+          <div class="settings-dir">
+            <span class="dir-path" id="welcomeDir">&hellip;</span>
+            <button class="btn" id="welcomeDirBtn">choose&hellip;</button>
+          </div>
+          <div class="settings-note">plain Markdown files, one folder per subject &mdash; a few sample chapters are already there to explore</div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="welcomeKey">2 &middot; your AI key <span class="label-soft">(optional)</span></label>
+          <div class="key-row">
+            <input class="settings-input" id="welcomeKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-&hellip;" />
+            <button class="btn" id="welcomeTest">test</button>
+          </div>
+          <div class="settings-note" id="welcomeKeyNote">turns chapter PDFs into notes. Get one at console.anthropic.com &rarr; API keys. Stored in Windows Credential Manager, never in a file.</div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn" id="welcomeSkip">skip &mdash; use offline</button>
+          <button class="btn btn-accent" id="welcomeDone">start</button>
+        </div>
+      </div>
+    </div>
+
     <!-- settings modal -->
     <div class="modal-back" id="settingsModal" hidden>
       <div class="modal">
         <div class="modal-eyebrow">settings</div>
-        <h3 class="modal-title">Notebook &amp; distiller</h3>
+        <h3 class="modal-title">Notebook &amp; AI</h3>
 
         <div class="settings-row">
           <label class="settings-label">notes folder</label>
@@ -181,21 +222,28 @@
         </div>
 
         <div class="settings-row">
-          <label class="settings-label" for="llmBaseUrl">distiller api base url <span class="label-soft">(optional)</span></label>
-          <input class="settings-input" id="llmBaseUrl" type="text" placeholder="https://seekai.cc/v1" />
-          <div class="settings-note">any Anthropic Messages-compatible endpoint &mdash; /v1/messages is appended automatically; leave empty to use the .env defaults</div>
+          <label class="settings-label" for="llmKey">AI key</label>
+          <div class="key-row">
+            <input class="settings-input" id="llmKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-&hellip;" />
+            <button class="btn" id="llmTest">test</button>
+          </div>
+          <div class="settings-note" id="llmKeyNote">get one at console.anthropic.com &rarr; API keys &middot; stored in Windows Credential Manager</div>
+          <button class="link-btn" id="llmClearKey" hidden>remove saved key</button>
         </div>
 
-        <div class="settings-row">
-          <label class="settings-label" for="llmModel">distiller model <span class="label-soft">(optional)</span></label>
-          <input class="settings-input" id="llmModel" type="text" placeholder="claude-sonnet-5" />
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label" for="llmKey">api key <span class="label-soft">(optional — overrides .env)</span></label>
-          <input class="settings-input" id="llmKey" type="password" placeholder="sk-&hellip;" />
-          <div class="settings-note">default distiller: seekai (claude-sonnet-5) falling back to gorouter (claude-opus-4-8-thinking), keys read from the project's .env — ANTHROPIC_API_KEY and SECONDARY_TOKEN</div>
-        </div>
+        <details class="settings-advanced">
+          <summary>advanced &mdash; other providers</summary>
+          <div class="settings-row">
+            <label class="settings-label" for="llmBaseUrl">API base URL</label>
+            <input class="settings-input" id="llmBaseUrl" type="text" placeholder="https://api.anthropic.com" />
+            <div class="settings-note">any Anthropic Messages-compatible endpoint</div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-label" for="llmModel">model</label>
+            <input class="settings-input" id="llmModel" type="text" placeholder="claude-opus-5-5" />
+            <div class="settings-note">claude-sonnet-5-5 is cheaper; claude-opus-5-5 writes the best notes</div>
+          </div>
+        </details>
 
         <div class="modal-actions">
           <button class="btn" id="settingsClose">close</button>

@@ -1,14 +1,15 @@
 {
   "name": "quillpad",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A local-first notebook app that turns chapter PDFs into brief, clear, subject-organized study notes.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "node tests/run.mjs"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.2.5",

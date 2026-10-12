@@ -46,9 +46,55 @@ fn validate_study_state(v: &serde_json::Value) -> Result<(), String> {
     Ok(())
 }
 
+/// Load settings (migrating 0.1 leftovers) and fill the runtime-only key
+/// from the credential store. Every AI command goes through this.
+pub fn settings_with_key(app: &AppHandle) -> Result<Settings, String> {
+    let mut settings = Settings::load_migrated(&app_data(app), crate::keystore::set)?;
+    settings.llm_api_key = crate::keystore::get()?.unwrap_or_default();
+    Ok(settings)
+}
+
+#[derive(serde::Serialize)]
+pub struct AiStatus {
+    pub key_set: bool,
+    pub base_url: String,
+    pub model: String,
+    pub onboarded: bool,
+    pub key_error: Option<String>,
+}
+
 #[tauri::command]
 pub fn get_settings(app: AppHandle) -> Result<Settings, String> {
-    Settings::load(&app_data(&app))
+    // the key never crosses into the webview (an un-migrated 0.1 key may
+    // still be on disk; the UI only needs ai_status.key_set)
+    let mut settings = Settings::load(&app_data(&app))?;
+    settings.llm_api_key.clear();
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn ai_status(app: AppHandle) -> Result<AiStatus, String> {
+    let plain = Settings::load(&app_data(&app))?;
+    let env = crate::distill::has_env_endpoint();
+    let (key_set, key_error) = match settings_with_key(&app) {
+        Ok(s) => (!s.llm_api_key.is_empty() || env, None),
+        Err(e) => (env, Some(e)),
+    };
+    Ok(AiStatus {
+        key_set,
+        base_url: crate::ai_config::normalize_base_url(&plain.llm_base_url),
+        model: crate::ai_config::effective_model(&plain.llm_model),
+        onboarded: plain.onboarded,
+        key_error,
+    })
+}
+
+#[tauri::command]
+pub fn complete_onboarding(app: AppHandle) -> Result<(), String> {
+    let data = app_data(&app);
+    let mut settings = Settings::load(&data)?;
+    settings.onboarded = true;
+    settings.save(&data)
 }
 
 #[tauri::command]
@@ -148,13 +194,24 @@ pub fn export_note_markdown(note: Note, dest: String) -> Result<String, String> 
     Ok(path.to_string_lossy().to_string())
 }
 
+/// `api_key: None` keeps the saved key; `clear_key` removes it.
 #[tauri::command]
-pub fn set_llm_settings(app: AppHandle, base_url: String, model: String, api_key: String) -> Result<(), String> {
+pub fn set_llm_settings(
+    app: AppHandle,
+    base_url: String,
+    model: String,
+    api_key: Option<String>,
+    clear_key: bool,
+) -> Result<(), String> {
     let data = app_data(&app);
-    let mut settings = Settings::load(&data)?;
-    settings.llm_base_url = base_url;
-    settings.llm_model = model;
-    settings.llm_api_key = api_key;
+    let mut settings = Settings::load_migrated(&data, crate::keystore::set)?;
+    settings.llm_base_url = crate::ai_config::normalize_base_url(&base_url);
+    settings.llm_model = crate::ai_config::effective_model(&model);
+    if clear_key {
+        crate::keystore::clear()?;
+    } else if let Some(k) = api_key.filter(|k| !k.trim().is_empty()) {
+        crate::keystore::set(&k)?;
+    }
     settings.save(&data)
 }
 
@@ -167,7 +224,7 @@ pub async fn import_chapter(
     page_images: Option<Vec<String>>,
 ) -> Result<crate::distill::ImportOutcome, String> {
     let data = app_data(&app);
-    let settings = Settings::load(&data)?;
+    let settings = settings_with_key(&app)?;
     let root = notes_root(&data, &settings)?;
 
     // The target filename is fully determined by the request, so an existing
@@ -200,7 +257,7 @@ pub async fn import_chapter(
                 _ => crate::distill::extract_pdf_text(path)?,
             };
             if t.trim().is_empty() {
-                return Err("no text found in this file — scanned PDFs need vision transcription (configure SECONDARY_TOKEN)".into());
+                return Err("no text found in this file — scanned PDFs need an API key (add one in settings)".into());
             }
             t
         }
@@ -227,8 +284,7 @@ pub async fn ask_notes(
     question: String,
     contexts: Vec<crate::distill::NoteContext>,
 ) -> Result<crate::distill::AskOutcome, String> {
-    let data = app_data(&app);
-    let settings = Settings::load(&data)?;
+    let settings = settings_with_key(&app)?;
     crate::distill::answer_from_notes(&settings, &question, &contexts).await
 }
 
@@ -280,8 +336,7 @@ pub async fn gen_quiz(
     note_title: String,
     topics_text: String,
 ) -> Result<Vec<crate::distill::QuizItem>, String> {
-    let data = app_data(&app);
-    let settings = Settings::load(&data)?;
+    let settings = settings_with_key(&app)?;
     crate::distill::generate_quiz(&settings, &note_title, &topics_text).await
 }
 
@@ -295,8 +350,7 @@ pub async fn grade_written(
     model_answer: String,
     student_answer: String,
 ) -> Result<crate::distill::WrittenGrade, String> {
-    let data = app_data(&app);
-    let settings = Settings::load(&data)?;
+    let settings = settings_with_key(&app)?;
     crate::distill::grade_written_answer(&settings, &topic_title, &model_answer, &student_answer).await
 }
 
@@ -310,8 +364,7 @@ pub async fn gen_written_questions(
     topics_text: String,
     count: usize,
 ) -> Result<Vec<crate::distill::WrittenQuestion>, String> {
-    let data = app_data(&app);
-    let settings = Settings::load(&data)?;
+    let settings = settings_with_key(&app)?;
     crate::distill::generate_written_questions(&settings, &subjects, &topics_text, count).await
 }
 
@@ -322,8 +375,7 @@ pub async fn grade_exam(
     paper_json: String,
     answers: Vec<String>,
 ) -> Result<Vec<crate::distill::ExamQResult>, String> {
-    let data = app_data(&app);
-    let settings = Settings::load(&data)?;
+    let settings = settings_with_key(&app)?;
     crate::distill::grade_exam(&settings, paper_json, answers).await
 }
 
@@ -355,4 +407,70 @@ pub fn save_exam_history(app: AppHandle, history: serde_json::Value) -> Result<(
     let p = exam_history_path(&app);
     let text = serde_json::to_string_pretty(&history).map_err(error)?;
     write_atomic(&p, text.as_bytes())
+}
+
+/// Check a key without spending tokens: GET /v1/models. Some compatible
+/// gateways lack that route, so a 404 falls back to a 1-token message.
+#[tauri::command]
+pub async fn test_connection(
+    app: AppHandle,
+    base_url: String,
+    model: String,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    let key = match api_key.filter(|k| !k.trim().is_empty()) {
+        Some(k) => k.trim().to_string(),
+        None => settings_with_key(&app)?.llm_api_key,
+    };
+    if key.is_empty() {
+        return Err("paste a key first".into());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(error)?;
+    let unreachable = |e: reqwest::Error| {
+        if e.is_connect() || e.is_timeout() {
+            "couldn't reach the AI service — check your internet connection".to_string()
+        } else {
+            format!("request failed: {e}")
+        }
+    };
+
+    let resp = client
+        .get(crate::ai_config::models_url(&base_url))
+        .header("x-api-key", &key)
+        .header("anthropic-version", "2023-06-01")
+        .send()
+        .await
+        .map_err(unreachable)?;
+    let status = resp.status().as_u16();
+    if (200..300).contains(&status) {
+        return Ok("connected".into());
+    }
+    if status != 404 {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::ai_config::describe_status(status, &body));
+    }
+
+    let body = serde_json::json!({
+        "model": crate::ai_config::effective_model(&model),
+        "max_tokens": 1,
+        "messages": [{"role": "user", "content": "ping"}],
+    });
+    let resp = client
+        .post(crate::ai_config::messages_url(&base_url))
+        .header("x-api-key", &key)
+        .header("anthropic-version", "2023-06-01")
+        .json(&body)
+        .send()
+        .await
+        .map_err(unreachable)?;
+    let status = resp.status().as_u16();
+    if (200..300).contains(&status) {
+        Ok("connected".into())
+    } else {
+        let body = resp.text().await.unwrap_or_default();
+        Err(crate::ai_config::describe_status(status, &body))
+    }
 }

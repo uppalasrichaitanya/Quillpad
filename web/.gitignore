@@ -1,0 +1,7 @@
+node_modules
+dist
+public/download
+.shots
+
+dist-artifact
+dist-ssr

@@ -1,0 +1,12 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="Quillpad">
+  <defs>
+    <filter id="qpRough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="1" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4"/>
+    </filter>
+  </defs>
+  <circle cx="256" cy="230" r="150" fill="none" stroke="#362B1E" stroke-width="58" filter="url(#qpRough)"/>
+  <path d="M 452 84 C 368 168 322 300 334 388" fill="none" stroke="#362B1E" stroke-width="54" stroke-linecap="round" filter="url(#qpRough)"/>
+  <path d="M 414 130 C 388 118 366 118 350 126" fill="none" stroke="#362B1E" stroke-width="30" stroke-linecap="round" filter="url(#qpRough)"/>
+  <path d="M 300 392 C 316 434 348 456 386 462" fill="none" stroke="#BC5A32" stroke-width="40" stroke-linecap="round" filter="url(#qpRough)"/>
+</svg>

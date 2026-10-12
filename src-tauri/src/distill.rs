@@ -61,32 +61,49 @@ pub struct Endpoint {
     pub browser_ua: bool,
     /// "anthropic" (Messages API) or "openai" (chat/completions).
     pub api_kind: &'static str,
+    /// Anthropic's own API: first-party-only request fields are safe to send.
+    pub first_party: bool,
 }
 
 /// Load the endpoints in priority order:
 /// 1. explicit user settings (if key set), then
-/// 2. .env: ANTHROPIC_API_KEY @ seekai, SECONDARY_TOKEN @ gorouter (vision),
-///    GEMINI_API_KEY @ google (text), NVIDIA_API_KEY @ nvidia (text),
-///    INCEPTION_API_KEY @ inception (mercury-2, text).
+/// 2. developer .env: QUILLPAD_SEEKAI_KEY @ seekai, QUILLPAD_GOROUTER_KEY @ gorouter (vision),
+///    QUILLPAD_INCEPTION_KEY @ inception (mercury-2, text).
 pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
+    endpoints_from(settings, &load_env())
+}
+
+/// Developer-only .env fallbacks. Only Quillpad-specific names count, so a
+/// stray .env with a standard name (ANTHROPIC_API_KEY…) in some parent folder
+/// can never send someone's own key to these gateways.
+const DEV_SEEKAI: &str = "QUILLPAD_SEEKAI_KEY";
+const DEV_GOROUTER: &str = "QUILLPAD_GOROUTER_KEY";
+const DEV_INCEPTION: &str = "QUILLPAD_INCEPTION_KEY";
+
+fn endpoints_from(
+    settings: &crate::library::Settings,
+    env: &std::collections::HashMap<String, String>,
+) -> Vec<Endpoint> {
     let mut out = Vec::new();
 
     // user-configured endpoint first, if it has a key
     if !settings.llm_api_key.trim().is_empty() {
+        let base = &settings.llm_base_url;
+        let first_party = crate::ai_config::is_first_party(base);
         out.push(Endpoint {
             name: "custom",
-            url: format!("{}/v1/messages", settings.llm_base_url.trim_end_matches('/').trim_end_matches("/v1")),
+            url: crate::ai_config::messages_url(base),
             key: settings.llm_api_key.trim().to_string(),
-            model: settings.llm_model.trim().to_string(),
+            model: crate::ai_config::effective_model(&settings.llm_model),
             vision: true,
-            browser_ua: true,
+            browser_ua: !first_party,
             api_kind: "anthropic",
+            first_party,
         });
     }
 
-    // .env-based defaults: primary (text distill) + fallback (vision + text)
-    let env = load_env();
-    if let Some(key) = env.get("ANTHROPIC_API_KEY") {
+    // developer .env chain: primary (text distill) + fallback (vision + text)
+    if let Some(key) = env.get(DEV_SEEKAI) {
         if !key.is_empty() {
             out.push(Endpoint {
                 name: "seekai",
@@ -96,10 +113,11 @@ pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
                 vision: false,
                 browser_ua: false,
                 api_kind: "anthropic",
+                first_party: false,
             });
         }
     }
-    if let Some(key) = env.get("SECONDARY_TOKEN") {
+    if let Some(key) = env.get(DEV_GOROUTER) {
         if !key.is_empty() {
             out.push(Endpoint {
                 name: "gorouter",
@@ -109,10 +127,11 @@ pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
                 vision: true,
                 browser_ua: true,
                 api_kind: "anthropic",
+                first_party: false,
             });
         }
     }
-    if let Some(key) = env.get("INCEPTION_API_KEY") {
+    if let Some(key) = env.get(DEV_INCEPTION) {
         if !key.is_empty() {
             out.push(Endpoint {
                 name: "inception",
@@ -122,6 +141,7 @@ pub fn load_endpoints(settings: &crate::library::Settings) -> Vec<Endpoint> {
                 vision: false,
                 browser_ua: false,
                 api_kind: "openai",
+                first_party: false,
             });
         }
     }
@@ -187,6 +207,17 @@ fn load_env() -> std::collections::HashMap<String, String> {
     map
 }
 
+/// True when a developer .env supplies at least one endpoint key.
+pub fn has_env_endpoint() -> bool {
+    env_has_endpoint(&load_env())
+}
+
+fn env_has_endpoint(env: &std::collections::HashMap<String, String>) -> bool {
+    [DEV_SEEKAI, DEV_GOROUTER, DEV_INCEPTION]
+        .iter()
+        .any(|k| env.get(*k).is_some_and(|v| !v.is_empty()))
+}
+
 /// Result of a successful import: the saved note plus its on-disk filename.
 #[derive(Debug, Clone, Serialize)]
 pub struct ImportOutcome {
@@ -230,7 +261,7 @@ pub async fn generate_quiz(
 ) -> Result<Vec<QuizItem>, String> {
     let endpoints = load_endpoints(settings);
     if endpoints.is_empty() {
-        return Err("no distiller configured — set an API key in settings or a .env file".into());
+        return Err(crate::ai_config::no_key_message().into());
     }
     let prompt = format!(
         r#"You are making a quick self-quiz for a student from their own study note: "{title}".
@@ -330,7 +361,7 @@ pub async fn grade_written_answer(
 ) -> Result<WrittenGrade, String> {
     let endpoints = load_endpoints(settings);
     if endpoints.is_empty() {
-        return Err("no distiller configured".into());
+        return Err(crate::ai_config::no_key_message().into());
     }
     let prompt = format!(
         r#"You are an exam invigilator grading a practice answer for a university exam (JNTUH style, marks for structure and completeness).
@@ -442,7 +473,7 @@ pub async fn generate_written_questions(
 ) -> Result<Vec<WrittenQuestion>, String> {
     let endpoints = load_endpoints(settings);
     if endpoints.is_empty() {
-        return Err("no distiller configured".into());
+        return Err(crate::ai_config::no_key_message().into());
     }
     let prompt = format!(
         r#"You are setting a university exam paper ({subjects}) from the student's own notes below.
@@ -527,7 +558,7 @@ pub async fn grade_exam(
 ) -> Result<Vec<ExamQResult>, String> {
     let endpoints = load_endpoints(settings);
     if endpoints.is_empty() {
-        return Err("no distiller configured".into());
+        return Err(crate::ai_config::no_key_message().into());
     }
     // paper_json: [{number, question, model_answer}] — re-embed for the prompt
     let mut paper = String::new();
@@ -541,7 +572,7 @@ pub async fn grade_exam(
                 item.get("question").and_then(|q| q.as_str()).unwrap_or(""),
                 truncate(item.get("model_answer").and_then(|m| m.as_str()).unwrap_or(""), 1500),
                 blank,
-                &ans,
+                ans,
             ));
         }
     }
@@ -618,7 +649,7 @@ pub async fn answer_from_notes(
 ) -> Result<AskOutcome, String> {
     let endpoints = load_endpoints(settings);
     if endpoints.is_empty() {
-        return Err("no distiller configured — set an API key in settings or a .env file".into());
+        return Err(crate::ai_config::no_key_message().into());
     }
     let ctx_block = contexts
         .iter()
@@ -790,6 +821,32 @@ fn extract_anthropic_text(json: &serde_json::Value) -> Vec<&str> {
         .unwrap_or_default()
 }
 
+/// Messages API request body. No sampling params, no thinking config and no
+/// prefill: current Claude models reject them. Effort and server-side refusal
+/// fallbacks are first-party only.
+pub fn anthropic_body(ep: &Endpoint, system: &str, blocks: serde_json::Value) -> serde_json::Value {
+    let mut body = serde_json::json!({
+        "model": ep.model,
+        "max_tokens": 16000,
+        "system": system,
+        "messages": [{"role": "user", "content": blocks}],
+    });
+    if ep.first_party {
+        body["output_config"] = serde_json::json!({"effort": "medium"});
+        body["fallbacks"] = serde_json::json!("default");
+    }
+    body
+}
+
+/// A cut-off or declined reply is not "bad json" — say what happened.
+pub fn read_stop_reason(json: &serde_json::Value) -> Result<(), String> {
+    match json.get("stop_reason").and_then(|s| s.as_str()) {
+        Some("max_tokens") => Err("the chapter is too long for one pass — split the file into smaller parts and import each".into()),
+        Some("refusal") => Err("the AI declined this request — try rephrasing, or a different file".into()),
+        _ => Ok(()),
+    }
+}
+
 /// One LLM call with content blocks, routed by endpoint kind.
 /// Anthropic: Messages API with x-api-key. OpenAI: chat/completions with
 /// Bearer auth — the prompt text is flattened into a single user message.
@@ -800,7 +857,8 @@ async fn call_anthropic_blocks(
     blocks: serde_json::Value,
 ) -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(290))
+        // long chapters at 16k output tokens can take minutes; the SDKs' 10 min
+        .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -822,7 +880,7 @@ async fn call_anthropic_blocks(
     let req = if ep.api_kind == "openai" {
         let body = serde_json::json!({
             "model": ep.model,
-            "max_tokens": 8000,
+            "max_tokens": 16000,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt_text},
@@ -834,20 +892,16 @@ async fn call_anthropic_blocks(
             .header("content-type", "application/json")
             .json(&body)
     } else {
-        let body = serde_json::json!({
-            "model": ep.model,
-            "max_tokens": 8000,
-            "system": system,
-            "messages": [
-                {"role": "user", "content": blocks}
-            ]
-        });
+        let body = anthropic_body(ep, system, blocks);
         let mut r = client
             .post(&ep.url)
             .header("x-api-key", &ep.key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
             .json(&body);
+        if ep.first_party {
+            r = r.header("anthropic-beta", "server-side-fallback-2026-07-01");
+        }
         if ep.browser_ua {
             r = r.header("User-Agent", BROWSER_UA);
         }
@@ -865,7 +919,11 @@ async fn call_anthropic_blocks(
         {
             Ok(r) => r,
             Err(e) => {
-                last_err = format!("{}: request failed: {e}", ep.name);
+                let f = send_failure(e.is_connect(), e.is_timeout(), &e.to_string());
+                last_err = f.message;
+                if attempt >= f.attempts {
+                    return Err(last_err);
+                }
                 sleep_backoff(attempt).await;
                 continue;
             }
@@ -873,8 +931,7 @@ async fn call_anthropic_blocks(
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            let short: String = text.chars().take(300).collect();
-            last_err = format!("{} returned {status}: {short}", ep.name);
+            last_err = crate::ai_config::describe_status(status.as_u16(), &text);
             // 5xx / 429: transient, retry; others: fail fast
             if status.as_u16() >= 500 || status.as_u16() == 429 {
                 sleep_backoff(attempt).await;
@@ -895,6 +952,7 @@ async fn call_anthropic_blocks(
             }
             return Ok(content.to_string());
         }
+        read_stop_reason(&json)?;
         // Anthropic shape: content: [ {type:"text", text:"..."} ] — thinking models
         // also emit {type:"thinking"} blocks; only the text ones carry the answer.
         let pieces = extract_anthropic_text(&json);
@@ -904,6 +962,35 @@ async fn call_anthropic_blocks(
         return Ok(pieces.join("\n"));
     }
     Err(last_err)
+}
+
+/// What to do when a request never got an HTTP response.
+struct SendFailure {
+    message: String,
+    /// Total attempts allowed for this kind of failure.
+    attempts: u32,
+}
+
+/// A timeout is never retried: the server may still be generating — and
+/// billing — the first reply. A refused connection never reached it, so one
+/// retry is free.
+fn send_failure(is_connect: bool, is_timeout: bool, detail: &str) -> SendFailure {
+    if is_timeout {
+        SendFailure {
+            message: "the AI took too long to answer — try a shorter file, or try again later".into(),
+            attempts: 1,
+        }
+    } else if is_connect {
+        SendFailure {
+            message: "couldn't reach the AI service — check your internet connection".into(),
+            attempts: 2,
+        }
+    } else {
+        SendFailure {
+            message: format!("the request couldn't be sent: {detail}"),
+            attempts: 1,
+        }
+    }
 }
 
 async fn sleep_backoff(attempt: u32) {
@@ -931,7 +1018,7 @@ pub async fn transcribe_pages(
         .filter(|e| e.vision)
         .collect();
     if vision_eps.is_empty() {
-        return Err("no vision-capable distiller configured (need SECONDARY_TOKEN in .env or a custom endpoint)".into());
+        return Err("scanned PDFs need an API key with image support — add one in settings".into());
     }
     let mut transcript = String::new();
     let mut errors: Vec<String> = Vec::new();
@@ -982,7 +1069,7 @@ pub async fn distill_chapter(
 ) -> Result<DistillDraft, String> {
     let endpoints = load_endpoints(settings);
     if endpoints.is_empty() {
-        return Err("no distiller configured — set an API key in settings or a .env file".into());
+        return Err(crate::ai_config::no_key_message().into());
     }
     let prompt = build_prompt(req, chapter_text);
     let system = "You produce study notes as strict JSON. You never add prose around the JSON.";
@@ -1044,5 +1131,123 @@ pub fn assemble_note(req: &DistillRequest, draft: DistillDraft) -> Note {
         qa: draft.qa,
         recap: draft.recap,
         topics,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn custom_settings(url: &str, model: &str, key: &str) -> crate::library::Settings {
+        crate::library::Settings {
+            llm_base_url: url.into(),
+            llm_model: model.into(),
+            llm_api_key: key.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn custom_endpoint_uses_normalized_url_and_default_model() {
+        let eps = load_endpoints(&custom_settings("", "", "sk-ant-x"));
+        assert_eq!(eps[0].url, "https://api.anthropic.com/v1/messages");
+        assert_eq!(eps[0].model, "claude-opus-5-5");
+        assert!(eps[0].first_party);
+        assert!(!eps[0].browser_ua, "no UA spoofing against Anthropic");
+    }
+
+    #[test]
+    fn no_key_means_no_custom_endpoint() {
+        let eps = load_endpoints(&custom_settings("", "", ""));
+        assert!(eps.iter().all(|e| e.name != "custom"));
+    }
+
+    #[test]
+    fn first_party_body_has_effort_and_fallbacks_but_no_sampling() {
+        let ep = &load_endpoints(&custom_settings("", "", "k"))[0];
+        let b = anthropic_body(ep, "sys", serde_json::json!([{"type":"text","text":"hi"}]));
+        assert_eq!(b["max_tokens"], 16000);
+        assert_eq!(b["output_config"]["effort"], "medium");
+        assert_eq!(b["fallbacks"], "default");
+        assert!(b.get("temperature").is_none() && b.get("thinking").is_none());
+    }
+
+    #[test]
+    fn third_party_body_is_plain() {
+        let ep = &load_endpoints(&custom_settings("https://gw.example.com", "m", "k"))[0];
+        let b = anthropic_body(ep, "sys", serde_json::json!([]));
+        assert!(b.get("output_config").is_none() && b.get("fallbacks").is_none());
+        assert_eq!(b["max_tokens"], 16000);
+    }
+
+    #[test]
+    fn stop_reasons_map_to_messages() {
+        assert!(read_stop_reason(&serde_json::json!({"stop_reason":"end_turn"})).is_ok());
+        let cut = read_stop_reason(&serde_json::json!({"stop_reason":"max_tokens"})).unwrap_err();
+        assert!(cut.contains("too long"));
+        let no = read_stop_reason(&serde_json::json!({"stop_reason":"refusal"})).unwrap_err();
+        assert!(no.contains("declined"));
+    }
+
+    fn env_of(pairs: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    }
+
+    #[test]
+    fn standard_key_names_in_a_stray_env_are_ignored() {
+        // a friend's own .env must never reach a third-party gateway
+        let env = env_of(&[("ANTHROPIC_API_KEY", "sk-ant-real"), ("OPENAI_API_KEY", "sk-x")]);
+        let eps = endpoints_from(&custom_settings("", "", ""), &env);
+        assert!(eps.is_empty(), "{:?}", eps.iter().map(|e| e.name).collect::<Vec<_>>());
+        assert!(!env_has_endpoint(&env));
+    }
+
+    #[test]
+    fn quillpad_prefixed_dev_keys_enable_the_dev_chain() {
+        let env = env_of(&[("QUILLPAD_SEEKAI_KEY", "a"), ("QUILLPAD_GOROUTER_KEY", "b")]);
+        let eps = endpoints_from(&custom_settings("", "", ""), &env);
+        let names: Vec<_> = eps.iter().map(|e| e.name).collect();
+        assert_eq!(names, ["seekai", "gorouter"]);
+        assert!(env_has_endpoint(&env));
+    }
+
+    #[test]
+    fn user_key_comes_before_dev_chain() {
+        let env = env_of(&[("QUILLPAD_SEEKAI_KEY", "a")]);
+        let eps = endpoints_from(&custom_settings("", "", "sk-ant-user"), &env);
+        assert_eq!(eps[0].name, "custom");
+    }
+
+    #[test]
+    fn timeouts_are_never_retried() {
+        // the server may still be generating (and billing) the first request
+        let f = send_failure(false, true, "operation timed out");
+        assert_eq!(f.attempts, 1);
+        assert!(f.message.contains("took too long"), "{}", f.message);
+    }
+
+    #[test]
+    fn connection_failures_retry_once_with_a_plain_message() {
+        let f = send_failure(true, false, "dns error");
+        assert_eq!(f.attempts, 2);
+        assert!(f.message.contains("couldn't reach"), "{}", f.message);
+    }
+
+    #[test]
+    fn other_send_errors_fail_fast() {
+        let f = send_failure(false, false, "builder error");
+        assert_eq!(f.attempts, 1);
+        assert!(f.message.contains("builder error"));
+    }
+
+    #[test]
+    fn env_endpoint_needs_a_non_empty_known_key() {
+        let mut env = std::collections::HashMap::new();
+        assert!(!env_has_endpoint(&env));
+        env.insert("QUILLPAD_SEEKAI_KEY".to_string(), String::new());
+        env.insert("UNRELATED".to_string(), "x".to_string());
+        assert!(!env_has_endpoint(&env));
+        env.insert("QUILLPAD_GOROUTER_KEY".to_string(), "tok".to_string());
+        assert!(env_has_endpoint(&env));
     }
 }

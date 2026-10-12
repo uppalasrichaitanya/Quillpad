@@ -1533,3 +1533,54 @@ body,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- first-run welcome, key settings, no-key prompt ---------- */
+.key-row { display: flex; gap: 8px; }
+.key-row .settings-input { flex: 1; min-width: 0; }
+.settings-note.ok { color: var(--rust); }
+.settings-note.err { color: #a3261c; }
+body.midnight .settings-note.err { color: #f2a99f; }
+.settings-advanced { margin: 4px 0 10px; }
+.settings-advanced summary {
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 6px 0;
+}
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.key-prompt {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100; /* above the study overlay: the quiz can raise it */
+  max-width: 380px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rust-soft);
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: 0 18px 50px rgba(30, 20, 10, 0.25);
+}
+.key-prompt[hidden] { display: none; }
+.key-prompt-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+.key-prompt-body { font-size: 14px; color: var(--ink-soft); margin: 0 0 12px; }
+
+/* settings can be opened from the key prompt while studying */
+#settingsModal { z-index: 95; }
